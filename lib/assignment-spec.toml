@@ -1,0 +1,19 @@
+title = "generic-assignment"
+
+[meta]
+type = "spec"
+
+[problems]
+
+  [problems.problem_one]
+  name  = "funtimes!"
+  files = ["file1.c", "file1.readme"]
+  total = 40
+
+  [problems.problem_two]
+  name  = "oh great!"
+  filename = ["file2.c"]
+  total = 20
+
+[handin]
+due = "7/4/1776"
