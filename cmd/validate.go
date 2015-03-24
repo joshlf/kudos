@@ -1,36 +1,21 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/spf13/cobra"
-)
+import "github.com/spf13/cobra"
 
 var cmdValidate = &cobra.Command{
 	Use:   "validate",
 	Short: "validate the configuration",
-	Long: `Perform all of the steps necessary
-to determine kudos' configuration,
-reporting any errors encountered.
-This includes reading environment
-variables, command line flags, and
-configuration files. Validate will
-check not only the syntax of these,
-but will also perform sanity checks
-to make sure that the configuration
-makes sense.`,
+	Long: `Perform all of the steps necessary to determine kudos' configuration, 
+reporting any errors encountered. This includes reading environment variables,
+command line flags, and configuration files. Validate will check not only the 
+syntax of these, but will also perform sanity checks to make sure that the 
+configuration makes sense.`,
 }
 
 func init() {
-	var verbose bool
-	cmdValidate.Flags().BoolVarP(&verbose, "verbose", "v", false, "display extra information about the configuration")
-
 	f := func(cmd *cobra.Command, args []string) {
-		if verbose {
-			fmt.Println("Verbose!")
-		} else {
-			fmt.Println("Not verbose!")
-		}
+		common()
+		// TODO(synful)
 	}
 	cmdValidate.Run = f
 	cmdMain.AddCommand(cmdValidate)
