@@ -1,2 +1,2 @@
 # kudos
-A simple assignment and evaluation system for CS departments
+A simple grading system for CS departments
