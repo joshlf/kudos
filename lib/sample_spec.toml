@@ -8,8 +8,9 @@ total = 40
 
 [[problem]]
 name  = "oh great!"
-filename = ["file2.c"]
+files = ["file2.c"]
 total = 20
 
 [handin]
-due = "7/4/1776"
+due = "Jul 4, 2015 at 12:00am (EST)"
+grace = "4m"
