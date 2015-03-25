@@ -1,4 +1,4 @@
-// Package db.json provides a JSON-backed DB implementation
+// Package json provides a JSON-backed DB implementation
 // as expected by the interfaces defined in package db.
 package json
 
@@ -40,45 +40,42 @@ func (jp *jsonDB) exists() (bool, error) {
 		return false, nil
 	} else if err != nil {
 		return false, err
-	} else {
-		return true, nil
 	}
+	return true, nil
 }
 
 func (jp *jsonDB) Init() error {
 	if present, err := jp.exists(); err != nil {
-		return fmt.Errorf("db.json.Init: Failed to init db.\n%v", err)
+		return fmt.Errorf("json.Init: Failed to init db.\n%v", err)
 	} else if present {
-		return fmt.Errorf("db.json.Init: Database already exists.")
-	} else {
-		return nil
+		return fmt.Errorf("json.Init: Database already exists")
 	}
+	return nil
 }
 
 func (jp *jsonDB) Connect() (db.Conn, error) {
 	if present, err := jp.exists(); err != nil {
 		return nil, err
 	} else if !present {
-		return nil, fmt.Errorf("db.json.Connect: Database not found.")
+		return nil, fmt.Errorf("json.Connect: Database not found")
 	} else {
 		if jp.handle, err = os.OpenFile(jp.config.path, os.O_RDWR, 0660); err != nil {
 			return nil, err
-		} else {
-			jp.status = connected
-			return jp, nil
 		}
+		jp.status = connected
+		return jp, nil
+
 	}
 }
 
 func (jp *jsonDB) Destroy() error {
 	if present, err := jp.exists(); err != nil {
-		return fmt.Errorf("db.json.Destroy: Failed to delete db.\n%v", err)
+		return fmt.Errorf("json.Destroy: Failed to delete db.\n%v", err)
 	} else if present {
 		os.Remove(jp.config.path)
 		return nil
-	} else {
-		return fmt.Errorf("db.json.Destroy: Database does not exist.")
 	}
+	return fmt.Errorf("json.Destroy: Database does not exist")
 }
 
 func (jp *jsonDB) Close() error {
