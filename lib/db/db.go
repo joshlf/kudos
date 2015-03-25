@@ -41,7 +41,7 @@ type Entity interface {
 }
 
 type Conn interface {
-	Query(path []string, constraints []Constraint) ([]Entity, error)
+	Query(path []string, constraints ...Constraint) ([]Entity, error)
 
 	// Close closes the connection and invalidate it;
 	// all future calls to Query will fail.
