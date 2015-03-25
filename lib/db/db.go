@@ -75,7 +75,7 @@ var reg registry
 
 func init() {
 	reg = registry{
-		providers: make(map[string]Connector),
+		providers: make(map[string]Provider),
 	}
 }
 
@@ -98,9 +98,9 @@ func RegisterProvider(name string, provider Provider) {
 func GetDB(provider string, config interface{}) (DB, error) {
 	reg.Lock()
 	defer reg.Unlock()
-	p, ok := reg.providers[name]
+	p, ok := reg.providers[provider]
 	if !ok {
-		panic(fmt.Sprintf("db: no such provider: %v", name))
+		panic(fmt.Sprintf("db: no such provider: %v", provider))
 	}
 	return p(config)
 }
