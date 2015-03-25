@@ -1,39 +1,41 @@
 package db
 
+import "fmt"
+
 type DBKind int
 
 const (
-  DBKIND_STRING DBKind = iota
-  DBKIND_NUMBER
+	DBKIND_STRING DBKind = iota
+	DBKIND_NUMBER
 )
 
-type DBEntry {
-  Kind DBKind
-  Value string
+type DBEntry struct {
+	Kind  DBKind
+	Value string
 }
 
 type DBEntity interface {
-  fmt.Stringer
-  RecursiveString() string
+	fmt.Stringer
+	RecursiveString() string
 
-  Get(string key) (error, DBEntry)
-  Set(string key, DBEntry value)
+	Get(string key) (error, DBEntry)
+	Set(string key, value DBEntry)
 
-  AddField(string key, DBKind kind) error
-  RemoveField(string key) error
+	AddField(key string, kind DBKind) error
+	RemoveField(key string) error
 
-  Children() []DBEntity
-  AddChild(string name) error
-  RemoveChild(string name) error
+	Children() []DBEntity
+	AddChild(name string) error
+	RemoveChild(name string) error
 }
 
 type DBProvider interface {
-  Open() (error,DBProvider)
-  Commit() (error,DBProvider)
+	Open() (error, DBProvider)
+	Commit() (error, DBProvider)
 
-  Init() (error,DBProvider)
-  Destroy() error
+	Init() (error, DBProvider)
+	Destroy() error
 
-  Query([]string path, []DBConstraint constraints) (error,[]DBEntity)
-  Modify() error
+	Query(paths []string, constraints []DBConstraint) (error, []DBEntity)
+	Modify() error
 }
