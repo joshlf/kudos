@@ -17,7 +17,7 @@ const (
 )
 
 type Constraint struct {
-	// TODO(m)
+	// TODO(mdburns)
 }
 
 type Entry struct {
