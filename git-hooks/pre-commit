@@ -15,3 +15,9 @@ echo Running '`go fmt ./...`'
 go fmt ./... || (rm $TMP; echo commit aborted >&2; exit 1)
 echo Running '`go build ./...`'
 go build ./... || (rm $TMP; echo commit aborted >&2; exit 1)
+echo Running '`go build -tags dev ./...`'
+go build -tags dev ./... || (rm $TMP; echo commit aborted >&2; exit 1)
+echo Running '`go build -tags debug ./...`'
+go build -tags debug ./... || (rm $TMP; echo commit aborted >&2; exit 1)
+echo Running "\`go build -tags 'dev debug'./...\`"
+go build -tags 'dev debug' ./... || (rm $TMP; echo commit aborted >&2; exit 1)
