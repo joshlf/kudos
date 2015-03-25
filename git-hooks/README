@@ -1,0 +1,2 @@
+This directory contains hooks which git will execute at various times. To
+install the hooks, run ./install-hooks.sh.
