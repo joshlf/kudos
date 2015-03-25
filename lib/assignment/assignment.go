@@ -1,7 +1,9 @@
 package assignment
 
 import (
+	"fmt"
 	"io/ioutil"
+	"strconv"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -15,10 +17,24 @@ type HandinMetadata struct {
 	// TODO(synful)
 }
 
+type GradeNum struct {
+	float64
+}
+
+func (g *GradeNum) UnmarshalText(text []byte) error {
+	var err error
+	g.float64, err = strconv.ParseFloat(string(text), 64)
+	return err
+}
+
+func (g GradeNum) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprint(g.float64)), nil
+}
+
 type Problem struct {
 	Name  string
 	Files []string
-	Total int
+	Total GradeNum
 }
 
 type AssignSpec struct {

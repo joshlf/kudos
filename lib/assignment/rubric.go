@@ -3,12 +3,12 @@ package assignment
 type Rubric struct {
 	Assignment string
 	Grader     string
-	Grades     []Grade `toml:"grade"`
+	Grade      []Grade `toml:"grade"`
 }
 
 type Grade struct {
-	Problem string
-	Comment string
-	Score   GradeNum
-	Total   GradeNum `toml:"possible"`
+	Problem  string   `toml:"problem"`
+	Comment  string   `toml:"comment"`
+	Score    GradeNum `toml:"score"`
+	Possible GradeNum `toml:"possible"`
 }
