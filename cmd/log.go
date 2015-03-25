@@ -31,7 +31,6 @@ func (l Level) Print(a ...interface{}) {
 	if l < level {
 		return
 	}
-	prefix := l.prefix()
 	fmt.Print(a...)
 }
 
