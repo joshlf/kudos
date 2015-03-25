@@ -31,6 +31,7 @@ func (l Level) Print(a ...interface{}) {
 	if l < level {
 		return
 	}
+	prefix := l.prefix()
 	fmt.Print(a...)
 }
 
@@ -46,6 +47,13 @@ func (l Level) Println(a ...interface{}) {
 		return
 	}
 	fmt.Println(a...)
+}
+
+func (l Level) prefix() string {
+	if l == Debug {
+		return "[debug] "
+	}
+	return ""
 }
 
 func init() {
