@@ -1,5 +1,5 @@
 // Package db provides a generic interface to any database backend.
-// Packages implementing DBProviders should call RegisterProvider
+// Packages implementing Providers should call RegisterProvider
 // in an init function so that it is guaranteed to be available to
 // users before their code runs.
 package db
@@ -9,50 +9,65 @@ import (
 	"sync"
 )
 
-type DBKind int
+type Kind int
 
 const (
-	DBKindString DBKind = iota
-	DBKindNumber
+	KindString Kind = iota
+	KindNumber
 )
 
-type DBConstraint struct {
+type Constraint struct {
 	// TODO(m)
 }
 
-type DBEntry struct {
-	Kind  DBKind
+type Entry struct {
+	Kind  Kind
 	Value string
 }
 
-type DBEntity interface {
+type Entity interface {
 	fmt.Stringer
 	RecursiveString() string
 
-	Get(key string) (error, DBEntry)
-	Set(key string, value DBEntry)
+	Get(key string) (Entry, error)
+	Set(key string, value Entry)
 
-	AddField(key string, kind DBKind) error
+	AddField(key string, kind Kind) error
 	RemoveField(key string) error
 
-	Children() []DBEntity
+	Children() []Entity
 	AddChild(name string) error
 	RemoveChild(name string) error
 }
 
-type DBProvider interface {
-	Open() (error, DBProvider)
-	Commit() (error, DBProvider)
+type Conn interface {
+	Query(path []string, constraints []Constraint) ([]Entity, error)
 
-	Init() (error, DBProvider)
-	Destroy() error
-
-	Query(paths []string, constraints []DBConstraint) (error, []DBEntity)
-	Modify() error
+	// Close closes the connection and invalidate it;
+	// all future calls to Query will fail.
+	Close() error
 }
 
+type DB interface {
+	// Init creates a database if it doesn't
+	// already exist. It returns an error
+	// if the database already exists.
+	Init() error
+
+	// Destroy deletes a database. It returns
+	// an error if the database doesn't
+	// already exist.
+	Destroy() error
+
+	// Connect opens a new connection to
+	// a database.
+	Connect() (Conn, error)
+}
+
+type Provider func(config interface{}) (DB, error)
+
 type registry struct {
-	providers map[string]DBProvider
+	providers map[string]Provider
 	sync.Mutex
 }
 
@@ -60,14 +75,14 @@ var reg registry
 
 func init() {
 	reg = registry{
-		providers: make(map[string]DBProvider),
+		providers: make(map[string]Connector),
 	}
 }
 
 // RegisterProvider registers the given provider under
 // the given name. This should only be called by packages
 // implementing providers.
-func RegisterProvider(name string, provider DBProvider) {
+func RegisterProvider(name string, provider Provider) {
 	reg.Lock()
 	defer reg.Unlock()
 	if _, ok := reg.providers[name]; ok {
@@ -76,15 +91,16 @@ func RegisterProvider(name string, provider DBProvider) {
 	reg.providers[name] = provider
 }
 
-// GetProvider returns the named provider. It panics
+// GetDB uses the named provider and given config
+// to create a new DB, which is returned. It panics
 // if the named provider has not previously been
 // registered.
-func GetProvider(name string) DBProvider {
+func GetDB(provider string, config interface{}) (DB, error) {
 	reg.Lock()
 	defer reg.Unlock()
 	p, ok := reg.providers[name]
 	if !ok {
 		panic(fmt.Sprintf("db: no such provider: %v", name))
 	}
-	return p
+	return p(config)
 }
