@@ -13,10 +13,6 @@ func timeparse(text string) (time.Time, error) {
 	return time.Parse("Jan 2, 2006 at 3:04pm (MST)", text)
 }
 
-type HandinMetadata struct {
-	// TODO(synful)
-}
-
 type GradeNum struct {
 	float64
 }
