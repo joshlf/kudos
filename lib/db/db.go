@@ -48,7 +48,6 @@ type DBProvider interface {
 	Destroy() error
 
 	Query(paths []string, constraints []DBConstraint) (error, []DBEntity)
-	Modify() error
 }
 
 type registry struct {
