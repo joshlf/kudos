@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/synful/kudos/lib/log"
 )
 
 var cmdMain = &cobra.Command{
@@ -29,9 +30,9 @@ func main() {
 
 func common() {
 	if quietFlag {
-		SetLoggingLevel(Warn)
+		log.SetLoggingLevel(log.Warn)
 	} else if verboseFlag {
-		SetLoggingLevel(Verbose)
+		log.SetLoggingLevel(log.Verbose)
 	}
 
 	InitConfig(configFlag)

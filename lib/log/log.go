@@ -1,8 +1,11 @@
-package main
+package log
 
-import "fmt"
+import (
+	"fmt"
+	"sync/atomic"
+)
 
-type Level int
+type Level uint32
 
 const (
 	Debug Level = iota
@@ -16,49 +19,44 @@ var names = []string{"Debug", "Verbose", "Info", "Warn", "Error"}
 
 func (l Level) String() string {
 	if l < Debug || l > Error {
-		return fmt.Sprintf("UnknownLevel(%v)", int(l))
+		return fmt.Sprintf("UnknownLevel(%v)", uint32(l))
 	}
 	return names[l]
 }
 
-var level Level
+var level uint32
 
+// SetLoggingLevel sets the minimum level
+// that will be printed. For level m,
+// m.Print* will execute only if m >= l;
+// otherwise, it will be a no-op.
+//
+// The default is Info.
 func SetLoggingLevel(l Level) {
-	level = l
+	atomic.StoreUint32(&level, uint32(l))
 }
 
 func (l Level) Print(a ...interface{}) {
-	if l < level {
+	if uint32(l) > atomic.LoadUint32(&level) {
 		return
 	}
 	fmt.Print(a...)
 }
 
 func (l Level) Printf(format string, a ...interface{}) {
-	if l < level {
+	if uint32(l) > atomic.LoadUint32(&level) {
 		return
 	}
 	fmt.Printf(format, a...)
 }
 
 func (l Level) Println(a ...interface{}) {
-	if l < level {
+	if uint32(l) > atomic.LoadUint32(&level) {
 		return
 	}
 	fmt.Println(a...)
 }
 
-func (l Level) prefix() string {
-	if l == Debug {
-		return "[debug] "
-	}
-	return ""
-}
-
 func init() {
-	if DebugMode {
-		SetLoggingLevel(Debug)
-	} else {
-		SetLoggingLevel(Info)
-	}
+	SetLoggingLevel(Info)
 }

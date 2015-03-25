@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/viper"
+	"github.com/synful/kudos/lib/log"
 )
 
 const (
@@ -19,7 +20,7 @@ type Config struct {
 // InitConfig initializes the configuration
 // with the given configuration file path
 func InitConfig(config string) {
-	Debug.Printf("using config: %v\n", config)
+	log.Debug.Printf("using config: %v\n", config)
 
 	viper.SetConfigFile(config)
 	viper.SetEnvPrefix(EnvPrefix)
@@ -36,12 +37,12 @@ func InitConfig(config string) {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		Error.Printf("could not read config: %v\n", err)
+		log.Error.Printf("could not read config: %v\n", err)
 		devFail()
 	}
 
 	if err != nil {
-		Error.Printf("could not parse config: %v\n", err)
+		log.Error.Printf("could not parse config: %v\n", err)
 		devFail()
 	}
 }
