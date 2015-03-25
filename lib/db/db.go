@@ -1,13 +1,24 @@
+// Package db provides a generic interface to any database backend.
+// Packages implementing DBProviders should call RegisterProvider
+// in an init function so that it is guaranteed to be available to
+// users before their code runs.
 package db
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 type DBKind int
 
 const (
-	DBKIND_STRING DBKind = iota
-	DBKIND_NUMBER
+	DBKindString DBKind = iota
+	DBKindNumber
 )
+
+type DBConstraint struct {
+	// TODO(m)
+}
 
 type DBEntry struct {
 	Kind  DBKind
@@ -18,8 +29,8 @@ type DBEntity interface {
 	fmt.Stringer
 	RecursiveString() string
 
-	Get(string key) (error, DBEntry)
-	Set(string key, value DBEntry)
+	Get(key string) (error, DBEntry)
+	Set(key string, value DBEntry)
 
 	AddField(key string, kind DBKind) error
 	RemoveField(key string) error
@@ -38,4 +49,42 @@ type DBProvider interface {
 
 	Query(paths []string, constraints []DBConstraint) (error, []DBEntity)
 	Modify() error
+}
+
+type registry struct {
+	providers map[string]DBProvider
+	sync.Mutex
+}
+
+var reg registry
+
+func init() {
+	reg = registry{
+		providers: make(map[string]DBProvider),
+	}
+}
+
+// RegisterProvider registers the given provider under
+// the given name. This should only be called by packages
+// implementing providers.
+func RegisterProvider(name string, provider DBProvider) {
+	reg.Lock()
+	defer reg.Unlock()
+	if _, ok := reg.providers[name]; ok {
+		panic(fmt.Sprintf("db: registration of already-registered provider: %v", name))
+	}
+	reg.providers[name] = provider
+}
+
+// GetProvider returns the named provider. It panics
+// if the named provider has not previously been
+// registered.
+func GetProvider(name string) DBProvider {
+	reg.Lock()
+	defer reg.Unlock()
+	p, ok := reg.providers[name]
+	if !ok {
+		panic(fmt.Sprintf("db: no such provider: %v", name))
+	}
+	return p
 }
