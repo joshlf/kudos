@@ -7,9 +7,15 @@ package dev
 import (
 	"fmt"
 	"os"
+
+	"github.com/synful/kudos/lib/build"
 )
 
 func Fail() {
-	fmt.Fprintln(os.Stderr, "[dev] failing for lack of anything better to do")
+	msg := "[dev] failing for lack of anything better to do"
+	if build.DevMode {
+		panic(msg)
+	}
+	fmt.Fprintln(os.Stderr, msg)
 	os.Exit(1)
 }
