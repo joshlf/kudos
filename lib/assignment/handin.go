@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 )
@@ -34,11 +33,11 @@ func PerformHandin(metadata HandinMetadata, target string) error {
 		return fmt.Errorf("could not write metadata file: %v", err)
 	}
 
-	tf, err := ioutil.TempFile("", "kudos")
+	tf, err := os.OpenFile(target, os.O_RDWR, 0)
 	if err != nil {
-		return fmt.Errorf("could not create temp file: %v", err)
+		return fmt.Errorf("could open target: %v", err)
 	}
-	defer os.Remove(tf.Name())
+	defer tf.Close()
 
 	cmd := exec.Command("tar", "c", ".")
 	gzw := gzip.NewWriter(tf)
@@ -46,11 +45,7 @@ func PerformHandin(metadata HandinMetadata, target string) error {
 	cmd.Stdout = gzw
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("could not create handin archive: %v", err)
-	}
-	err = os.Rename(tf.Name(), target)
-	if err != nil {
-		return fmt.Errorf("could not move handin into place: %v", err)
+		return fmt.Errorf("could not write handin archive: %v", err)
 	}
 	return nil
 }

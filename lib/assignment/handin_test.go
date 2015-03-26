@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -30,8 +31,15 @@ func TestHandin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not change to test directory: %v", err)
 	}
-	err = PerformHandin(HandinMetadata{}, filepath.Join(cwd, "handin_test.tgz"))
-	defer os.Remove(filepath.Join(cwd, "handin_test.tgz"))
+
+	target := filepath.Join(cwd, "handin_test.tgz")
+	_, err = os.Create(target)
+	if err != nil {
+		t.Fatalf("could not create target file: %v", err)
+	}
+	defer os.Remove(target)
+
+	err = PerformHandin(HandinMetadata{}, target)
 	if err != nil {
 		t.Fatalf("could not perform handin: %v", err)
 	}
@@ -44,39 +52,25 @@ func TestHandin(t *testing.T) {
 		t.Fatalf("could not create gzip reader: %v", err)
 	}
 	tr := tar.NewReader(gr)
-	hdr, err := tr.Next()
-	if err != nil {
-		t.Fatalf("could not read handin archive: %v", err)
+
+	expected := map[string][]byte{
+		"./":                {},
+		"./.kudos_metadata": []byte("{}\n"),
+		"./foo":             []byte("foo\n"),
 	}
-	if hdr.Name != "./" {
-		t.Errorf("unexpected file name in handin archive: expected \"./\"; got \"%v\"", hdr.Name)
+	got := make(map[string][]byte)
+	for i := 0; i < 3; i++ {
+		hdr, err := tr.Next()
+		if err != nil {
+			t.Fatalf("could not read handin archive: %v", err)
+		}
+		got[hdr.Name] = make([]byte, hdr.Size)
+		_, err = io.ReadFull(tr, got[hdr.Name])
+		if err != nil {
+			t.Fatalf("couldn't read handin archive: %v", err)
+		}
 	}
-	if hdr.Size != 0 {
-		t.Errorf("unexpected file size in handin archive: expected 0; got %v", hdr.Size)
-	}
-	hdr, err = tr.Next()
-	if err != nil {
-		t.Fatalf("could not read handin archive: %v", err)
-	}
-	if hdr.Name != "./.kudos_metadata" {
-		t.Errorf("unexpected file name in handin archive: expected \"./.kudos_metadata\"; got \"%v\"", hdr.Name)
-	}
-	hdr, err = tr.Next()
-	if err != nil {
-		t.Fatalf("could not read handin archive: %v", err)
-	}
-	if hdr.Name != "./foo" {
-		t.Errorf("unexpected file name in handin archive: expected \"./foo\"; got \"%v\"", hdr.Name)
-	}
-	if hdr.Size != 4 {
-		t.Errorf("unexpected file size in handin archive: expected 4; got %v", hdr.Size)
-	}
-	buf := make([]byte, hdr.Size)
-	_, err = io.ReadFull(tr, buf)
-	if err != nil {
-		t.Errorf("couldn't read from handin archive: %v", err)
-	}
-	if string(buf) != "foo\n" {
-		t.Errorf("unexpected file contents: expected \"foo\\n\"; got \"%s\"", string(buf))
+	if !reflect.DeepEqual(expected, got) {
+		t.Errorf("unexpected tar contents: expectected:\n%v\n\ngot:\n%v", expected, got)
 	}
 }
