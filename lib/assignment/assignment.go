@@ -33,10 +33,26 @@ type Problem struct {
 	Total GradeNum
 }
 
+func DefaultProblem() Problem {
+	return Problem{
+		Name:  "Problem Name",
+		Files: []string{"file1.txt"},
+		Total: GradeNum{100},
+	}
+}
+
 type AssignSpec struct {
 	Title   string
 	Problem []Problem
 	Handin  Handin
+}
+
+func DefaultAssignSpec() AssignSpec {
+	return AssignSpec{
+		Title:   "Assignment Name",
+		Problem: []Problem{DefaultProblem()},
+		Handin:  Handin{},
+	}
 }
 
 type Handin struct {
