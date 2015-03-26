@@ -17,8 +17,8 @@ func DefaultGrade() Grade {
 	return Grade{
 		Problem:  "Problem Name",
 		Comment:  "Comments about the problem",
-		Score:    GradeNum{0},
-		Possible: GradeNum{100},
+		Score:    GradeNum(0),
+		Possible: GradeNum(100),
 	}
 }
 

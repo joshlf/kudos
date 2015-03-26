@@ -31,15 +31,15 @@ func TestDecodeRubric(t *testing.T) {
 
 wow you did so well!
 `,
-				Score:    GradeNum{40},
-				Possible: GradeNum{70},
+				Score:    GradeNum(40),
+				Possible: GradeNum(70),
 			},
 			Grade{
 				Problem: "collab policy stuff",
 				Comment: `Make sure to read the collaboration policy!
 `,
-				Score:    GradeNum{0.5},
-				Possible: GradeNum{15},
+				Score:    GradeNum(0.5),
+				Possible: GradeNum(15),
 			},
 		},
 	}

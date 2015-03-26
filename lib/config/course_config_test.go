@@ -12,10 +12,10 @@ import (
 
 var TestConfig = "sample_course_config.toml"
 
-func inti() {
+func init() {
 	_, parentDir, _, _ := runtime.Caller(0)
 	parentDir = filepath.Dir(parentDir)
-	TestRubric = filepath.Join(parentDir, TestRubric)
+	TestConfig = filepath.Join(parentDir, TestConfig)
 }
 
 func TestDecodeCourseConfig(t *testing.T) {

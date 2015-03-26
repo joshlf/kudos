@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
-	"strconv"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -13,18 +12,26 @@ func timeparse(text string) (time.Time, error) {
 	return time.Parse("Jan 2, 2006 at 3:04pm (MST)", text)
 }
 
-type GradeNum struct {
-	float64
-}
+type GradeNum float64
 
-func (g *GradeNum) UnmarshalText(text []byte) error {
-	var err error
-	g.float64, err = strconv.ParseFloat(string(text), 64)
-	return err
+func (g *GradeNum) UnmarshalTOML(i interface{}) error {
+	f, ok := i.(float64)
+	if !ok {
+		ii, ok := i.(int64)
+		if !ok {
+			return fmt.Errorf("expected number")
+		}
+		f = float64(ii)
+	}
+	*g = GradeNum(f)
+	return nil
 }
 
 func (g GradeNum) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprint(g.float64)), nil
+	if GradeNum(int(g)) == g {
+		return []byte(fmt.Sprint(int(g))), nil
+	}
+	return []byte(fmt.Sprint(g)), nil
 }
 
 type Problem struct {
@@ -37,7 +44,7 @@ func DefaultProblem() Problem {
 	return Problem{
 		Name:  "Problem Name",
 		Files: []string{"file1.txt"},
-		Total: GradeNum{100},
+		Total: GradeNum(100),
 	}
 }
 

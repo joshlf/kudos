@@ -8,6 +8,11 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+const (
+	CourseConfigDirName  = ".kudos"
+	CourseConfigFileName = "config.toml"
+)
+
 type HandinDir string
 
 func (h *HandinDir) UnmarshalTOML(i interface{}) error {
@@ -46,3 +51,12 @@ func DefaultCourseConfig() CourseConfig {
 		LongDescription:  "This is an introductory course in CS.",
 	}
 }
+
+// func ReadCourseConfig(course, coursePath string) (CourseConfig, error) {
+// 	confPath := filepath.Join(coursePath, CourseConfigDirName, CourseConfigFileName)
+// 	f, err := os.Open(confPath)
+// 	if err != nil {
+// 		return CourseConfig{}, fmt.Errorf("could not open course config: %v", err)
+// 	}
+// 	defer f.Close()
+// }

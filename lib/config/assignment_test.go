@@ -23,12 +23,12 @@ func TestDecoding(t *testing.T) {
 			Problem{
 				Name:  "funtimes!",
 				Files: []string{"file1.c", "file1.readme"},
-				Total: GradeNum{40},
+				Total: GradeNum(40),
 			},
 			Problem{
 				Name:  "oh great!",
 				Files: []string{"file2.c"},
-				Total: GradeNum{20},
+				Total: GradeNum(20),
 			},
 		},
 		Handin: Handin{
@@ -64,12 +64,12 @@ func TestEmitRubric(t *testing.T) {
 			Problem{
 				Name:  "funtimes!",
 				Files: []string{"file1.c", "file1.readme"},
-				Total: GradeNum{40},
+				Total: GradeNum(40),
 			},
 			Problem{
 				Name:  "oh great!",
 				Files: []string{"file2.c"},
-				Total: GradeNum{20},
+				Total: GradeNum(20),
 			},
 		},
 		Handin: Handin{
@@ -92,14 +92,14 @@ func TestEmitRubric(t *testing.T) {
 			Grade{
 				Problem:  "funtimes!",
 				Comment:  "",
-				Score:    GradeNum{0},
-				Possible: GradeNum{40},
+				Score:    GradeNum(0),
+				Possible: GradeNum(40),
 			},
 			Grade{
 				Problem:  "oh great!",
 				Comment:  "",
-				Score:    GradeNum{0.},
-				Possible: GradeNum{20},
+				Score:    GradeNum(0),
+				Possible: GradeNum(20),
 			},
 		},
 	}

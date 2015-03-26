@@ -18,7 +18,7 @@ func (a *AssignSpec) Rubric() (r Rubric) {
 		res.Grade = append(res.Grade, Grade{
 			Problem:  prob.Name,
 			Comment:  "",
-			Score:    GradeNum{0},
+			Score:    GradeNum(0),
 			Possible: prob.Total,
 		})
 	}
