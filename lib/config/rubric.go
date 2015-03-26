@@ -1,4 +1,4 @@
-package assignment
+package config
 
 type Rubric struct {
 	Assignment string
