@@ -20,12 +20,12 @@ func inti() {
 
 func TestDecodeCourseConfig(t *testing.T) {
 	expected := CourseConfig{
-		Name:             "cs0",
-		TaGroup:          "cs0tas",
-		StudentGroup:     "cs0students",
-		ShortDescription: "Test CS course",
-		LongDescription: `This is a test file providing an example for
-how course configs will look`,
+		Name:             "cs101",
+		TaGroup:          "cs101tas",
+		StudentGroup:     "cs101students",
+		HandinDir:        HandinDir("handin"),
+		ShortDescription: "CS 101",
+		LongDescription:  "This is an introductory course in CS.",
 	}
 
 	var testStr []byte

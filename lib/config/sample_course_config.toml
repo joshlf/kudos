@@ -1,13 +1,11 @@
-course-name = "cs0"
+course_name = "cs101"
 
-ta-group = "cs0tas"
+ta_group = "cs101tas"
 
-student-group = "cs0students"
+student_group = "cs101students"
 
-short-description = "Test CS course"
+short_description = "CS 101"
 
-long-description = """
-This is a test file providing an example for
-how course configs will look"""
+long_description = "This is an introductory course in CS."
 
-
+handin_dir = "handin"
