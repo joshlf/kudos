@@ -14,7 +14,7 @@ func dirMaker(dir string, err *error) func() {
 	}
 }
 
-func SetupDir(course, coursePath string) (err error) {
+func InitCourse(course, coursePath string) (err error) {
 	path := func(s ...string) string {
 		return filepath.Join(append([]string{coursePath}, s...)...)
 	}
