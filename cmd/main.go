@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
+	"github.com/synful/kudos/lib/config"
+	"github.com/synful/kudos/lib/dev"
 	"github.com/synful/kudos/lib/log"
 )
 
@@ -23,7 +22,7 @@ var courseFlag string
 func main() {
 	cmdMain.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "be more verbose than normal")
 	cmdMain.PersistentFlags().BoolVarP(&quietFlag, "quiet", "q", false, "be more quiet than normal; overrides --verbose")
-	cmdMain.PersistentFlags().StringVarP(&configFlag, "config", "", DefaultConfigFile, "location of the global config file")
+	cmdMain.PersistentFlags().StringVarP(&configFlag, "config", "", config.DefaultGlobalConfigFile, "location of the global config file")
 	cmdMain.PersistentFlags().StringVarP(&courseFlag, "course", "c", "", "course")
 	cmdMain.Execute()
 }
@@ -35,10 +34,9 @@ func common() {
 		log.SetLoggingLevel(log.Verbose)
 	}
 
-	InitConfig(configFlag)
-}
-
-func devFail() {
-	fmt.Fprintln(os.Stderr, "[dev] failing for lack of anything better to do")
-	os.Exit(1)
+	err := config.InitConfig(cmdMain.Flag("config"), cmdMain.Flag("course"))
+	if err != nil {
+		log.Error.Printf("could not initialize configuration: %v\n", err)
+	}
+	dev.Fail()
 }

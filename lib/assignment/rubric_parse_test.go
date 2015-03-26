@@ -3,13 +3,21 @@ package assignment
 import (
 	"bytes"
 	"io/ioutil"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/BurntSushi/toml"
 )
 
-const TEST_RUBRIC_1 = "sample_rubric.toml"
+var TestRubric = "sample_rubric.toml"
+
+func init() {
+	_, parentDir, _, _ := runtime.Caller(0)
+	parentDir = filepath.Dir(parentDir)
+	TestRubric = filepath.Join(parentDir, TestRubric)
+}
 
 func TestDecodeRubric(t *testing.T) {
 	var rubric Rubric
@@ -38,8 +46,8 @@ wow you did so well!
 	var testStr []byte
 	var err error
 
-	if testStr, err = ioutil.ReadFile(TEST_RUBRIC_1); err != nil {
-		t.Fatalf("Cannot find %v file!", TEST_RUBRIC_1)
+	if testStr, err = ioutil.ReadFile(TestRubric); err != nil {
+		t.Fatalf("Cannot find %v file!", TestRubric)
 	}
 
 	if _, err = toml.Decode(string(testStr), &rubric); err != nil {
@@ -58,8 +66,8 @@ func TestConformanceRubric(t *testing.T) {
 	var err error
 	var b bytes.Buffer
 
-	if testStr, err = ioutil.ReadFile(TEST_RUBRIC_1); err != nil {
-		t.Fatalf("Cannot find %v file!", TEST_RUBRIC_1)
+	if testStr, err = ioutil.ReadFile(TestRubric); err != nil {
+		t.Fatalf("Cannot find %v file!", TestRubric)
 	}
 
 	//fmt.Println(string(testStr))

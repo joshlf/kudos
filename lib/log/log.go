@@ -37,21 +37,21 @@ func SetLoggingLevel(l Level) {
 }
 
 func (l Level) Print(a ...interface{}) {
-	if uint32(l) > atomic.LoadUint32(&level) {
+	if uint32(l) < atomic.LoadUint32(&level) {
 		return
 	}
 	fmt.Print(a...)
 }
 
 func (l Level) Printf(format string, a ...interface{}) {
-	if uint32(l) > atomic.LoadUint32(&level) {
+	if uint32(l) < atomic.LoadUint32(&level) {
 		return
 	}
 	fmt.Printf(format, a...)
 }
 
 func (l Level) Println(a ...interface{}) {
-	if uint32(l) > atomic.LoadUint32(&level) {
+	if uint32(l) < atomic.LoadUint32(&level) {
 		return
 	}
 	fmt.Println(a...)

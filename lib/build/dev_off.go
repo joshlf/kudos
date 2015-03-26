@@ -4,4 +4,5 @@ package build
 
 const (
 	DevMode = false
+	Root    = ""
 )

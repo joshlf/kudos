@@ -12,7 +12,7 @@ cd $ROOT/.git/hooks || exit 1
 
 for fpath in ../../git-hooks/*; do
 	fname="$(echo $fpath | sed -e 's/\/$//' | rev | cut -d / -f 1 | rev)"
-	if [ "$fname" != "install-hooks.sh" ]; then
+	if [ "$fname" != "install-hooks.sh" -a "$fname" != "README" ]; then
 		ln -s "$fpath" "$fname" || exit 1
 	fi
 done
