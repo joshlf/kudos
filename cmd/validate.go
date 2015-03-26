@@ -32,5 +32,6 @@ func init() {
 		log.Verbose.Println("configuration validated")
 	}
 	cmdValidate.Run = f
+	addAllGlobalFlagsTo(cmdValidate.Flags())
 	cmdMain.AddCommand(cmdValidate)
 }

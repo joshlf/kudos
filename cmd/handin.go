@@ -13,5 +13,6 @@ func init() {
 		// TODO(synful)
 	}
 	cmdHandin.Run = f
+	addAllGlobalFlagsTo(cmdHandin.Flags())
 	cmdMain.AddCommand(cmdHandin)
 }
