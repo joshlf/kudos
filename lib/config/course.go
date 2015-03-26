@@ -2,7 +2,10 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
+
+	"github.com/BurntSushi/toml"
 )
 
 type HandinDir string
@@ -27,6 +30,10 @@ type CourseConfig struct {
 	HandinDir        HandinDir `toml:"handin_dir"`
 	ShortDescription string    `toml:"short_description"`
 	LongDescription  string    `toml:"long_description"`
+}
+
+func (c CourseConfig) WriteTOML(w io.Writer) (err error) {
+	return toml.NewEncoder(w).Encode(&c)
 }
 
 func DefaultCourseConfig() CourseConfig {
