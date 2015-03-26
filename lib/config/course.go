@@ -30,7 +30,7 @@ func (h *HandinDir) UnmarshalTOML(i interface{}) error {
 }
 
 type CourseConfig struct {
-	Name             string    `toml:"course_name"`
+	Name             string    `toml:"name"`
 	TaGroup          string    `toml:"ta_group"`
 	StudentGroup     string    `toml:"student_group"`
 	HandinDir        HandinDir `toml:"handin_dir"`

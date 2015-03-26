@@ -28,7 +28,8 @@ var Config = struct {
 
 // The layout of the global config file
 type globalConfigFile struct {
-	CoursePathPrefix, CoursePathSuffix string
+	Course_path_prefix string
+	Course_path_suffix string
 }
 
 // InitConfig initializes the configuration
@@ -70,7 +71,7 @@ func InitConfig(config *pflag.Flag, course *pflag.Flag) error {
 	}
 
 	Config.Course = viper.GetString(CourseEnvVar)
-	Config.CoursePath = filepath.Join(cfg.CoursePathPrefix, Config.Course, cfg.CoursePathSuffix)
+	Config.CoursePath = filepath.Join(cfg.Course_path_prefix, Config.Course, cfg.Course_path_suffix)
 	return nil
 }
 

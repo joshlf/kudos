@@ -1,6 +1,12 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/synful/kudos/lib/config"
+	"github.com/synful/kudos/lib/log"
+)
 
 var cmdValidate = &cobra.Command{
 	Use:   "validate",
@@ -15,7 +21,15 @@ configuration makes sense.`,
 func init() {
 	f := func(cmd *cobra.Command, args []string) {
 		common()
-		// TODO(synful)
+		requireCourse()
+		log.Verbose.Printf("using course %v and course path %v\n", config.Config.Course, config.Config.CoursePath)
+		_, err := config.ReadCourseConfig(config.Config.Course, config.Config.CoursePath)
+		if err != nil {
+			log.Error.Printf("%v\n", err)
+			log.Error.Println("configuration failed to validate")
+			os.Exit(1)
+		}
+		log.Verbose.Println("configuration validated")
 	}
 	cmdValidate.Run = f
 	cmdMain.AddCommand(cmdValidate)
