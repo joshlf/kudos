@@ -1,0 +1,13 @@
+course-name = "cs0"
+
+ta-group = "cs0tas"
+
+student-group = "cs0students"
+
+short-description = "Test CS course"
+
+long-description = """
+This is a test file providing an example for
+how course configs will look"""
+
+
