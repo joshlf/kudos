@@ -10,3 +10,5 @@ long_description = "CS 101 is an introductory course in CS."
 
 handin_dir = "handin"
 
+handin_method = "facl"
+

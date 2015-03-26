@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/synful/kudos/lib/log"
@@ -29,13 +30,31 @@ func (h *HandinDir) UnmarshalTOML(i interface{}) error {
 	return nil
 }
 
+type HandinMethod string
+
+const (
+	FaclMethod   HandinMethod = "facl"
+	SetgidMethod HandinMethod = "setgid"
+)
+
+func (h *HandinMethod) UnmarshalTOML(i interface{}) error {
+	method, _ := i.(string)
+	hmethod := HandinMethod(strings.ToLower(method))
+	if hmethod != FaclMethod && hmethod != SetgidMethod {
+		return fmt.Errorf("allowed methods: %v, %v", FaclMethod, SetgidMethod)
+	}
+	*h = hmethod
+	return nil
+}
+
 type CourseConfig struct {
-	Name             string    `toml:"name"`
-	TaGroup          string    `toml:"ta_group"`
-	StudentGroup     string    `toml:"student_group"`
-	HandinDir        HandinDir `toml:"handin_dir"`
-	ShortDescription string    `toml:"short_description"`
-	LongDescription  string    `toml:"long_description"`
+	Name             string       `toml:"name"`
+	TaGroup          string       `toml:"ta_group"`
+	StudentGroup     string       `toml:"student_group"`
+	HandinDir        HandinDir    `toml:"handin_dir"`
+	HandinMethod     HandinMethod `toml:"handin_method"`
+	ShortDescription string       `toml:"short_description"`
+	LongDescription  string       `toml:"long_description"`
 }
 
 func (c CourseConfig) WriteTOML(w io.Writer) (err error) {
@@ -48,6 +67,7 @@ func DefaultCourseConfig() CourseConfig {
 		TaGroup:          "cs101tas",
 		StudentGroup:     "cs101students",
 		HandinDir:        HandinDir("handin"),
+		HandinMethod:     FaclMethod,
 		ShortDescription: "CS 101",
 		LongDescription:  "This is an introductory course in CS.",
 	}

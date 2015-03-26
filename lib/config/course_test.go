@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
@@ -24,6 +25,7 @@ func TestDecodeCourseConfig(t *testing.T) {
 		TaGroup:          "cs101ta",
 		StudentGroup:     "cs101student",
 		HandinDir:        HandinDir("handin"),
+		HandinMethod:     FaclMethod,
 		ShortDescription: "CS 101",
 		LongDescription:  "CS 101 is an introductory course in CS.",
 	}
@@ -42,6 +44,27 @@ func TestDecodeCourseConfig(t *testing.T) {
 	if !reflect.DeepEqual(expected, config) {
 		t.Fatalf("Expected\n%v\n, Got \n%v\n", expected, config)
 	}
+
+	bad := expected
+	bad.HandinMethod = "bad"
+	testCourseConfigError(bad, "Type mismatch for 'config.CourseConfig.handin_method': allowed methods: facl, setgid", t)
+	bad = expected
+	bad.HandinDir = "/foo"
+	testCourseConfigError(bad, "Type mismatch for 'config.CourseConfig.handin_dir': must be relative path", t)
+}
+
+func testCourseConfigError(bad CourseConfig, expect string, t *testing.T) {
+	var conf CourseConfig
+	var buf bytes.Buffer
+	err := toml.NewEncoder(&buf).Encode(bad)
+	if err != nil {
+		t.Errorf("Unexpected encoding err: %v", err)
+		return
+	}
+	_, err = toml.DecodeReader(&buf, &conf)
+	if err == nil || err.Error() != expect {
+		t.Errorf("unexpected error; expected %v; got %v", expect, err)
+	}
 }
 
 func TestReadCourseConfig(t *testing.T) {
@@ -50,6 +73,7 @@ func TestReadCourseConfig(t *testing.T) {
 		TaGroup:          "cs101tas",
 		StudentGroup:     "cs101students",
 		HandinDir:        HandinDir("handin"),
+		HandinMethod:     FaclMethod,
 		ShortDescription: "CS 101",
 		LongDescription:  "This is an introductory course in CS.",
 	}

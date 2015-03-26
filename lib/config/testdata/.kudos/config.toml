@@ -9,3 +9,5 @@ short_description = "CS 101"
 long_description = "This is an introductory course in CS."
 
 handin_dir = "handin"
+
+handin_method = "facl"
