@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/synful/kudos/lib/log"
 )
 
 const (
@@ -52,11 +53,16 @@ func DefaultCourseConfig() CourseConfig {
 	}
 }
 
-// func ReadCourseConfig(course, coursePath string) (CourseConfig, error) {
-// 	confPath := filepath.Join(coursePath, CourseConfigDirName, CourseConfigFileName)
-// 	f, err := os.Open(confPath)
-// 	if err != nil {
-// 		return CourseConfig{}, fmt.Errorf("could not open course config: %v", err)
-// 	}
-// 	defer f.Close()
-// }
+func ReadCourseConfig(course, coursePath string) (CourseConfig, error) {
+	confPath := filepath.Join(coursePath, CourseConfigDirName, CourseConfigFileName)
+	log.Debug.Printf("reading course config file: %v\n", confPath)
+	var conf CourseConfig
+	_, err := toml.DecodeFile(confPath, &conf)
+	if err != nil {
+		return CourseConfig{}, fmt.Errorf("could not parse course config: %v", err)
+	}
+	if course != conf.Name {
+		return CourseConfig{}, fmt.Errorf("course name in config (%v) does not match expected name (%v)", conf.Name, course)
+	}
+	return conf, nil
+}

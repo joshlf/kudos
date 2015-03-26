@@ -10,7 +10,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-var TestConfig = "sample_course_config.toml"
+var TestConfig = "testdata/sample_course_config.toml"
 
 func init() {
 	_, parentDir, _, _ := runtime.Caller(0)
@@ -41,5 +41,27 @@ func TestDecodeCourseConfig(t *testing.T) {
 
 	if !reflect.DeepEqual(expected, config) {
 		t.Fatalf("Expected\n%v\n, Got \n%v\n", expected, config)
+	}
+}
+
+func TestReadCourseConfig(t *testing.T) {
+	expected := CourseConfig{
+		Name:             "cs101",
+		TaGroup:          "cs101tas",
+		StudentGroup:     "cs101students",
+		HandinDir:        HandinDir("handin"),
+		ShortDescription: "CS 101",
+		LongDescription:  "This is an introductory course in CS.",
+	}
+	conf, err := ReadCourseConfig("cs101", "testdata")
+	if err != nil {
+		t.Errorf("ReadCourseConfig(\"cs101\", \"testdata\"): %v", err)
+	} else if !reflect.DeepEqual(expected, conf) {
+		t.Errorf("expected:\n%v\n\ngot:\n%v", expected, conf)
+	}
+
+	conf, err = ReadCourseConfig("cs102", "testdata")
+	if err == nil || err.Error() != "course name in config (cs101) does not match expected name (cs102)" {
+		t.Errorf("expected error:\ncourse name in config (cs101) does not match expected name (cs102)\n\ngot:\n%v", err)
 	}
 }

@@ -1,0 +1,11 @@
+course_name = "cs101"
+
+ta_group = "cs101tas"
+
+student_group = "cs101students"
+
+short_description = "CS 101"
+
+long_description = "This is an introductory course in CS."
+
+handin_dir = "handin"

@@ -3,6 +3,8 @@ package log
 import (
 	"fmt"
 	"sync/atomic"
+
+	"github.com/synful/kudos/lib/build"
 )
 
 type Level uint32
@@ -31,7 +33,9 @@ var level uint32
 // m.Print* will execute only if m >= l;
 // otherwise, it will be a no-op.
 //
-// The default is Info.
+// The default is Info unless built
+// in debug mode, in which case it
+// is Debug.
 func SetLoggingLevel(l Level) {
 	atomic.StoreUint32(&level, uint32(l))
 }
@@ -59,4 +63,7 @@ func (l Level) Println(a ...interface{}) {
 
 func init() {
 	SetLoggingLevel(Info)
+	if build.DebugMode {
+		SetLoggingLevel(Debug)
+	}
 }

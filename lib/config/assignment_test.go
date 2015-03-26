@@ -10,7 +10,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-const TESTFILE1 = "sample_spec.toml"
+const TestFile = "testdata/sample_spec.toml"
 
 func TestDecoding(t *testing.T) {
 
@@ -39,8 +39,8 @@ func TestDecoding(t *testing.T) {
 	var testStr []byte
 	var err error
 
-	if testStr, err = ioutil.ReadFile(TESTFILE1); err != nil {
-		t.Fatalf("Cannot find %v file!", TESTFILE1)
+	if testStr, err = ioutil.ReadFile(TestFile); err != nil {
+		t.Fatalf("Cannot find %v file!", TestFile)
 	}
 
 	if _, err = toml.Decode(string(testStr), &asgn); err != nil {

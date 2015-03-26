@@ -11,7 +11,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-var TestRubric = "sample_rubric.toml"
+var TestRubric = "testdata/sample_rubric.toml"
 
 func init() {
 	_, parentDir, _, _ := runtime.Caller(0)
