@@ -1,12 +1,12 @@
-course_name = "cs101"
+name = "cs101"
 
-ta_group = "cs101tas"
+ta_group = "cs101ta"
 
-student_group = "cs101students"
+student_group = "cs101student"
 
 short_description = "CS 101"
 
-long_description = "This is an introductory course in CS."
+long_description = "CS 101 is an introductory course in CS."
 
 handin_dir = "handin"
 
