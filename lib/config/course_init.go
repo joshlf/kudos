@@ -8,6 +8,19 @@ import (
 	logpkg "github.com/synful/kudos/lib/log"
 )
 
+// TODO(synful): this may be broken.
+// First, if called like:
+// defer dirMaker()()
+// it would, on an "already exists"
+// error, attempt to remove the
+// existant dir (clearly wrong).
+//
+// Second, the order in which
+// the defered funcs are called
+// is important (otherwise you
+// might try removing /foo before
+// /foo/bar, so the first would
+// fail).
 func dirMaker(dir string, err *error) func() {
 	*err = os.Mkdir(dir, os.ModeDir)
 	return func() {
