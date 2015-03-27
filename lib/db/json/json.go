@@ -84,7 +84,7 @@ func (jp *jsonDB) Close() error {
 	return nil
 }
 
-func (jp *jsonDB) Query(path []string, constraint ...db.Constraint) ([]db.Entity, error) {
+func (jp *jsonDB) Query(path db.Path, constraint ...db.Constraint) ([]db.Entity, error) {
 	// TODO(mdburns)
 	return nil, nil
 }

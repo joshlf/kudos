@@ -5,22 +5,204 @@
 package db
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
 	"sync"
+
+	"github.com/synful/kudos/lib/build"
 )
 
+// TODO(synful): here only because it's
+// used in the Entity interface; we should
+// decide whether it is necessary, and if
+// so, use it more consistently
 type Kind int
 
 const (
-	KindString Kind = iota
-	KindNumber
+	NumberKind Kind = iota
+	StringKind
 )
 
-type Op int
+type PathElement struct {
+	Any  bool
+	Up   bool
+	Name string
+}
+
+func (p PathElement) String() string {
+	if p.Any {
+		return "*"
+	}
+	return p.Name
+}
+
+var (
+	Any = PathElement{Any: true}
+)
+
+type Path struct {
+	Path     []PathElement
+	Absolute bool
+}
+
+func (p *Path) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	*p = ParsePath(s)
+	return nil
+}
+
+func (p Path) String() string {
+	var elems []string
+	for _, elem := range p.Path {
+		elems = append(elems, elem.String())
+	}
+	str := strings.Join(elems, "/")
+	if p.Absolute {
+		return "/" + str
+	}
+	return str
+}
+
+// HasWildcards returns whether p
+// contains any wildcards
+func (p Path) HasWildcards() bool {
+	for _, elem := range p.Path {
+		if elem.Any {
+			return true
+		}
+	}
+	return false
+}
+
+// HasUps returns whether p
+// contains any .. elements
+func (p Path) HasUps() bool {
+	for _, elem := range p.Path {
+		if elem.Up {
+			return true
+		}
+	}
+	return false
+}
+
+func ParsePath(path string) Path {
+	var p Path
+	if len(path) > 0 && path[0] == '/' {
+		p.Absolute = true
+	}
+	fields := strings.FieldsFunc(path, func(r rune) bool { return r == '/' })
+	var elem PathElement
+	for _, field := range fields {
+		switch field {
+		case "*":
+			elem = PathElement{Any: true}
+		case "..":
+			elem = PathElement{Up: true}
+		default:
+			elem = PathElement{Name: field}
+		}
+		p.Path = append(p.Path, elem)
+	}
+	return p
+}
+
+type Value struct {
+	// Value must be string, int64, or float64
+	Value interface{}
+}
+
+func (v Value) String() string {
+	switch v := v.Value.(type) {
+	case string:
+		return fmt.Sprintf("%q", v)
+	case int64:
+		return fmt.Sprint(v)
+	case float64:
+		// TODO(synful): this distinction
+		// may turn out to be unnecessary,
+		// but keep it here for now just
+		// in case
+		if float64(int(v)) == v {
+			return fmt.Sprintf("%f.0", v)
+		}
+		return fmt.Sprint(v)
+	}
+	if build.DebugMode {
+		panic("internal error: Value.Value must be string, int64, or float64")
+	}
+	return fmt.Sprintf("IllegalValue(%v:%v)", reflect.ValueOf(v.Value), v.Value)
+}
+
+func (v *Value) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		var n json.Number
+		err = json.Unmarshal(b, &n)
+		if err != nil {
+			return fmt.Errorf("must be string or number")
+		}
+		i, err := n.Int64()
+		if err != nil {
+			f, err := n.Float64()
+			if err != nil {
+				panic(fmt.Errorf("internal error: json.Number is neither float64 nor int64: %v", n))
+			}
+			v.Value = f
+			return nil
+		}
+		v.Value = i
+		return nil
+	}
+	v.Value = s
+	return nil
+}
+
+type ConstraintEntity struct {
+	Entity interface{}
+}
+
+func (c ConstraintEntity) String() string {
+	switch e := c.Entity.(type) {
+	case Value:
+		return fmt.Sprintf("value:%v", e)
+	case Path:
+		return fmt.Sprintf("path:%v", e)
+	}
+	if build.DebugMode {
+		panic("internal error: ConstraintEntity.Entity must be Value or Path")
+	}
+	return fmt.Sprintf("UnknownConstraintEntity(%v:%v)", reflect.TypeOf(c.Entity), c.Entity)
+}
+
+func (c *ConstraintEntity) UnmarshalJSON(b []byte) error {
+	type jsonRepresentation struct {
+		Path  *Path
+		Value *interface{}
+	}
+	var j jsonRepresentation
+	err := json.Unmarshal(b, &j)
+	if err != nil {
+		return err
+	}
+	if j.Path != nil {
+		*c = ConstraintEntity{*j.Path}
+	} else {
+		*c = ConstraintEntity{*j.Value}
+	}
+	return nil
+}
+
+type Relation int
 
 const (
-	Any Op = iota
-	LT
+	LT Relation = iota
 	LTE
 	GT
 	GTE
@@ -28,31 +210,64 @@ const (
 	NEQ
 )
 
-type Direction struct {
-	Up   bool
-	Key  string
-	Next *Direction
+var relationKeywords = map[string]Relation{
+	"<":  LT,
+	"<=": LTE,
+	">":  GT,
+	">=": GTE,
+	"=":  EQ,
+	"!=": NEQ,
 }
 
-// type object { parent *object, children []object}
+var relationStrings = map[Relation]string{
+	LT:  "<",
+	LTE: "<=",
+	GT:  ">",
+	GTE: ">=",
+	EQ:  "=",
+	NEQ: "!=",
+}
+
+func (r Relation) String() string {
+	s, ok := relationStrings[r]
+	if !ok {
+		if build.DebugMode {
+			panic(fmt.Errorf("internal error: invalid relation %v", int(r)))
+		}
+		return fmt.Sprintf("UnknownRelation(%v)", int(r))
+	}
+	return s
+}
+
+func (r *Relation) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	rr, ok := relationKeywords[s]
+	if !ok {
+		return fmt.Errorf("unknown relation: %v", s)
+	}
+	*r = rr
+	return nil
+}
 
 type Constraint struct {
-	// TODO(mdburns)
-	Dir      *Direction
-	Relation Op
+	A, B     ConstraintEntity
+	Relation Relation
 }
 
-type Entry struct {
-	Kind  Kind
-	Value string
+func (c Constraint) String() string {
+	return fmt.Sprintf("(%v %v %v)", c.A, c.Relation, c.B)
 }
 
 type Entity interface {
 	fmt.Stringer
 	RecursiveString() string
 
-	Get(key string) (Entry, error)
-	Set(key string, value Entry)
+	Get(key string) (Value, error)
+	Set(key string, value Value)
 
 	AddField(key string, kind Kind) error
 	RemoveField(key string) error
@@ -63,7 +278,7 @@ type Entity interface {
 }
 
 type Conn interface {
-	Query(path []PathElt, constraints ...Constraint) ([]Entity, error)
+	Query(path Path, constraints ...Constraint) ([]Entity, error)
 
 	// Close closes the connection and invalidate it;
 	// all future calls to Query will fail.
