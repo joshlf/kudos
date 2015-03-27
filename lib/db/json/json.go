@@ -4,8 +4,9 @@ package json
 
 import (
 	"fmt"
-	"github.com/synful/kudos/lib/db"
 	"os"
+
+	"github.com/synful/kudos/lib/db"
 )
 
 const (
