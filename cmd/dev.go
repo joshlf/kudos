@@ -38,6 +38,8 @@ func printConstants() {
 		"lib/config.DefaultGlobalConfigFile":    config.DefaultGlobalConfigFile,
 		"lib/config.EnvPrefix":                  config.EnvPrefix,
 		"lib/config.CourseEnvVar":               config.CourseEnvVar,
+		"lib/config.FaclMethod":                 config.FaclMethod,
+		"lib/config.SetgidMethod":               config.SetgidMethod,
 	}
 	keys := make([]string, 0)
 	for k := range consts {

@@ -23,6 +23,7 @@ and jliebowf`,
 
 var verboseFlag bool
 var quietFlag bool
+var debugFlag bool
 var configFlag string
 var courseFlag string
 
@@ -69,8 +70,9 @@ func main() {
 	// itself (so define them directly on
 	// cmdMain rather than putting them in
 	// globalFlags)
-	cmdMain.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "be more verbose than normal")
-	cmdMain.PersistentFlags().BoolVarP(&quietFlag, "quiet", "q", false, "be more quiet than normal; overrides --verbose")
+	cmdMain.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "be more verbose than normal; overrides --quiet")
+	cmdMain.PersistentFlags().BoolVarP(&quietFlag, "quiet", "q", false, "be more quiet than normal")
+	cmdMain.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "print internal debugging information; implies --verbose")
 	if build.DebugMode {
 		cmdMain.DebugFlags()
 	}
@@ -81,10 +83,12 @@ func common() {
 	// If we're in debug mode, leave
 	// debug logging on
 	if !build.DebugMode {
-		if quietFlag {
-			log.SetLoggingLevel(log.Warn)
+		if debugFlag {
+			log.SetLoggingLevel(log.Debug)
 		} else if verboseFlag {
 			log.SetLoggingLevel(log.Verbose)
+		} else if quietFlag {
+			log.SetLoggingLevel(log.Warn)
 		}
 	} else {
 		if verboseFlag {
