@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestHandin(t *testing.T) {
+func TestFaclHandin(t *testing.T) {
 	cwd, err := os.Getwd()
 
 	testDir, err := ioutil.TempDir(".", "kudos_test")
@@ -39,7 +39,7 @@ func TestHandin(t *testing.T) {
 	}
 	defer os.Remove(target)
 
-	err = PerformHandin(HandinMetadata{}, target)
+	err = PerformFaclHandin(HandinMetadata{}, target)
 	if err != nil {
 		t.Fatalf("could not perform handin: %v", err)
 	}
