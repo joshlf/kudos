@@ -1,8 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+
+	logpkg "github.com/synful/kudos/lib/log"
 )
 
 func dirMaker(dir string, err *error) func() {
@@ -14,38 +17,59 @@ func dirMaker(dir string, err *error) func() {
 	}
 }
 
-func InitCourse(course, coursePath string) (err error) {
+// InitCourse initializes course in the directory
+// coursePath. It panics if coursePath is not an
+// absolute path.
+//
+// If log is true, InitCourse will print logging
+// information about what it is doing at the Info
+// level.
+func InitCourse(course, coursePath string, log bool) (err error) {
+	if !filepath.IsAbs(coursePath) {
+		panic("internal error: non-absolute coursePath")
+	}
+
+	printf := logpkg.Info.Printf
+	if !log {
+		printf = func(string, ...interface{}) {}
+		fmt.Print(printf)
+	}
+
 	path := func(s ...string) string {
 		return filepath.Join(append([]string{coursePath}, s...)...)
 	}
 
-	os.Chdir(coursePath)
+	conf := DefaultCourseConfig()
+	conf.Name = course
+	conf.TaGroup = course + "ta"
+	conf.StudentGroup = course + "student"
 
-	defConfig := DefaultCourseConfig()
-	defConfig.Name = course
-
+	printf("creating %v\n", path(CourseConfigDirName))
 	defer dirMaker(path(CourseConfigDirName), &err)()
 	if err != nil {
 		return
 	}
 
+	printf("creating %v\n", path(CourseConfigDirName, "assignments"))
 	defer dirMaker(path(CourseConfigDirName, "assignments"), &err)()
 	if err != nil {
 		return
 	}
 
-	defer dirMaker(path(CourseConfigDirName, "handin"), &err)()
+	printf("creating %v\n", path(string(conf.HandinDir)))
+	defer dirMaker(path(string(conf.HandinDir)), &err)()
 	if err != nil {
 		return
 	}
 
+	printf("creating %v\n", path(CourseConfigDirName, CourseConfigFileName))
 	var file *os.File
-	if file, err = os.OpenFile(path(CourseConfigDirName, "config.toml"),
+	if file, err = os.OpenFile(path(CourseConfigDirName, CourseConfigFileName),
 		os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0664); err != nil {
-		return err
+		return
 	}
 
-	defConfig.WriteTOML(file)
+	err = conf.WriteTOML(file)
 
 	return nil
 }

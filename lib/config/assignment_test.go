@@ -18,7 +18,7 @@ func TestDecoding(t *testing.T) {
 	tm, _ := timeparse("Jul 4, 2015 at 12:00am (EST)")
 	dur, _ := time.ParseDuration("4m")
 	expected := AssignSpec{
-		Title: "generic-assignment",
+		Name: "generic-assignment",
 		Problem: []Problem{
 			Problem{
 				Name:  "funtimes!",
@@ -59,7 +59,7 @@ func TestEmitRubric(t *testing.T) {
 	var b bytes.Buffer
 
 	orig := &AssignSpec{
-		Title: "generic-assignment",
+		Name: "generic-assignment",
 		Problem: []Problem{
 			Problem{
 				Name:  "funtimes!",

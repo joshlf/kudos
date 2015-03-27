@@ -49,14 +49,17 @@ func DefaultProblem() Problem {
 }
 
 type AssignSpec struct {
-	Title   string
+	// TODO(jliebowf): require assignment names to be
+	// sanitized (e.g., contain no spaces)? would allow
+	// us to assume we can use them as handin dir names
+	Name    string
 	Problem []Problem
 	Handin  Handin
 }
 
 func DefaultAssignSpec() AssignSpec {
 	return AssignSpec{
-		Title:   "Assignment Name",
+		Name:    "Assignment Name",
 		Problem: []Problem{DefaultProblem()},
 		Handin:  Handin{},
 	}

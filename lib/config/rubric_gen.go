@@ -12,7 +12,7 @@ import (
 
 // Generate a default rubric given an assignment spec
 func (a *AssignSpec) Rubric() (r Rubric) {
-	res := Rubric{Assignment: a.Title, Grader: ""}
+	res := Rubric{Assignment: a.Name, Grader: ""}
 
 	for _, prob := range a.Problem {
 		res.Grade = append(res.Grade, Grade{

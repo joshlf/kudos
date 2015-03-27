@@ -1,4 +1,4 @@
-title = "generic-assignment"
+name = "generic-assignment"
 
 [[problem]]
 name  = "funtimes!"
