@@ -34,6 +34,20 @@ func (p Perm) String() string {
 	return s
 }
 
+func (p Perm) aclString() string {
+	var s string
+	if p&Read != 0 {
+		s += "r"
+	}
+	if p&Write != 0 {
+		s += "w"
+	}
+	if p&Execute != 0 {
+		s += "x"
+	}
+	return s
+}
+
 type Entity uint8
 
 const (
@@ -42,7 +56,7 @@ const (
 	Other
 )
 
-func (e Entity) aclCode() string {
+func (e Entity) aclString() string {
 	switch e {
 	case User:
 		return "u"
@@ -89,7 +103,10 @@ type Facl struct {
 }
 
 func (f Facl) aclArg() string {
-	return f.Entity.aclCode() + f.Name + f.Perm.String()
+	if f.Entity == Other {
+		return fmt.Sprintf("%s:%s", f.Entity.aclString(), f.Perm.aclString())
+	}
+	return fmt.Sprintf("%s:%s:%s", f.Entity.aclString(), f.Name, f.Perm.aclString())
 }
 
 // AddFacl adds the given facls to file.
@@ -102,7 +119,7 @@ func AddFacl(file string, facls ...Facl) error {
 		panic("perm: no facls provided")
 	}
 	arg := faclArgString(facls...)
-	cmd := exec.Command("setfacl", "-m", arg)
+	cmd := exec.Command("setfacl", "-m", arg, file)
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("run setfacl: %v", err)
