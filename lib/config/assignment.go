@@ -2,109 +2,262 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
+	"path/filepath"
 	"time"
 
 	"github.com/BurntSushi/toml"
 )
 
-func timeparse(text string) (time.Time, error) {
-	return time.Parse("Jan 2, 2006 at 3:04pm (MST)", text)
+func ReadAssignment(course Course, code string) (Assignment, error) {
+	adir := course.AssignmentsDir()
+	// TODO(synful): do we want to assume toml?
+	file := filepath.Join(adir, code+".toml")
+	conf, err := readAssignConfig(code, file)
+	if err != nil {
+		return Assignment{}, err
+	}
+	return Assignment{conf, course}, nil
 }
 
-type GradeNum float64
-
-func (g *GradeNum) UnmarshalTOML(i interface{}) error {
-	f, ok := i.(float64)
-	if !ok {
-		ii, ok := i.(int64)
-		if !ok {
-			return fmt.Errorf("expected number")
-		}
-		f = float64(ii)
-	}
-	*g = GradeNum(f)
-	return nil
+type Assignment struct {
+	conf   assignConfig
+	course Course
 }
 
-func (g GradeNum) MarshalText() ([]byte, error) {
-	if GradeNum(int(g)) == g {
-		return []byte(fmt.Sprint(int(g))), nil
+// Code returns a's code.
+func (a Assignment) Code() string { return string(a.conf.Code.code) }
+
+// Name returns the human-readbale
+// name of a. If one was not set
+// in the config file, it defaults
+// to a.Code().
+func (a Assignment) Name() string {
+	if !a.conf.Name.set {
+		return a.Code()
 	}
-	return []byte(fmt.Sprint(g)), nil
+	return a.conf.Name.string
+}
+
+// HasMultipleHandins returns whether a
+// has multiple handins.
+func (a Assignment) HasMultipleHandins() bool { return !a.conf.Due.set }
+
+// Handin returns all of the handins for a.
+// If a.HasMultipleHandins() == false, it
+// panics; in this case, callers should
+// instead use a.Due().
+func (a Assignment) Handins() []Handin {
+	// TODO(synful): impelment
+	if !a.HasMultipleHandins() {
+		panic("config: does not have multiple handins")
+	}
+	var h []Handin
+	for _, hh := range a.conf.Handins {
+		h = append(h, hh.toHandin(a.conf.Problems))
+	}
+	return h
+}
+
+// Handin returns the due date for a.
+// If a.HasMultipleHandins() == true,
+// it panics; in this case, callers
+// should instead use a.Handins().
+func (a Assignment) Due() time.Time {
+	if a.HasMultipleHandins() {
+		panic("config: has multiple handins")
+	}
+	return time.Time(a.conf.Due.date)
+}
+
+func (a Assignment) HandinDir() string {
+	return filepath.Join(a.course.HandinDir(), string(a.conf.Code.code))
+}
+
+func (a Assignment) Problems() []Problem {
+	var p []Problem
+	for _, pp := range a.conf.Problems {
+		p = append(p, pp.toProblem())
+	}
+	return p
 }
 
 type Problem struct {
-	Name  string
-	Files []string
-	Total GradeNum
+	Code        string
+	name        optionalString
+	points      float64
+	SubProblems []Problem
 }
 
-func DefaultProblem() Problem {
-	return Problem{
-		Name:  "Problem Name",
-		Files: []string{"file1.txt"},
-		Total: GradeNum(100),
+// Name returns the human-readbale
+// name of p. If one was not set
+// in the config file, it defaults
+// to p.Code.
+func (p Problem) Name() string {
+	if !p.name.set {
+		return p.Code
 	}
+	return p.name.string
 }
 
-type AssignSpec struct {
-	// TODO(jliebowf): require assignment names to be
-	// sanitized (e.g., contain no spaces)? would allow
-	// us to assume we can use them as handin dir names
-	Name    string
-	Problem []Problem
-	Handin  Handin
-}
-
-func DefaultAssignSpec() AssignSpec {
-	return AssignSpec{
-		Name:    "Assignment Name",
-		Problem: []Problem{DefaultProblem()},
-		Handin:  Handin{},
+// Points returns the number of points that
+// p is worth. If len(p.SubProblems) > 0,
+// it will be inferred from the point values
+// of its subproblems. Otherwise, it will
+// will be the specified point value of
+// the problem itself. It is guaranteed that
+// this package will never return a Problem
+// which has either neither points nor
+// subproblems, or which has both.
+func (p Problem) Points() float64 {
+	if len(p.SubProblems) == 0 {
+		return p.points
 	}
+	points := float64(0)
+	for _, pp := range p.SubProblems {
+		points += pp.Points()
+	}
+	return points
 }
 
 type Handin struct {
-	Due   date
-	Grace duration
+	Code     string
+	Due      time.Time
+	Problems []Problem
 }
 
-type date struct {
-	time.Time
+type assignConfig struct {
+	// Guranteed to be set
+	Code     optionalCode   `toml:"code"`
+	Name     optionalString `toml:"name"`
+	Due      optionalDate   `toml:"due"` // set if and only if len(Handins) == 0
+	Handins  []handin       `toml:"handin"`
+	Problems []problem      `toml:"problem"`
 }
 
-func (d *date) UnmarshalText(text []byte) error {
-	var err error
-	d.Time, err = timeparse(string(text))
-	return err
+type problem struct {
+	// Guaranteed to be set
+	Code optionalCode   `toml:"code"`
+	Name optionalString `toml:"name"`
+
+	// Guaranteed that one of these fields
+	// will be set, but not both.
+	Points      optionalNumber `toml:"points"`
+	SubProblems []problem      `toml:"subproblem"`
 }
 
-// TAKEN from burntsushi example
-type duration struct {
-	time.Duration
+func (p problem) toProblem() Problem {
+	pp := Problem{
+		Code:   string(p.Code.code),
+		name:   p.Name,
+		points: float64(p.Points.number),
+	}
+	for _, ppp := range p.SubProblems {
+		pp.SubProblems = append(pp.SubProblems, ppp.toProblem())
+	}
+	return pp
 }
 
-func (d *duration) UnmarshalText(text []byte) error {
-	var err error
-	d.Duration, err = time.ParseDuration(string(text))
-	return err
+type handin struct {
+	// All fields are guaranteed to be set
+	Code     optionalCode `toml:"code"`
+	Due      optionalDate `toml:"due"`
+	Problems []code       `toml:"problems"`
 }
 
-//end taken from example
-
-func AsgnFromFile(file string) (AssignSpec, error) {
-	var fileText []byte
-	var err error
-	var res AssignSpec
-
-	if fileText, err = ioutil.ReadFile(file); err != nil {
-		return AssignSpec{}, err
+func (h handin) toHandin(p []problem) Handin {
+	probs := make(map[code]Problem)
+	for _, pp := range p {
+		probs[pp.Code.code] = pp.toProblem()
 	}
 
-	if _, err = toml.Decode(string(fileText), &res); err != nil {
-		return AssignSpec{}, err
+	hh := Handin{
+		Code: string(h.Code.code),
+		Due:  time.Time(h.Due.date),
+	}
+	for _, p := range h.Problems {
+		pp, ok := probs[p]
+		if !ok {
+			panic("config: internal error")
+		}
+		hh.Problems = append(hh.Problems, pp)
+	}
+	return hh
+}
+
+func readAssignConfig(code, file string) (assignConfig, error) {
+	var conf assignConfig
+	if _, err := toml.DecodeFile(file, &conf); err != nil {
+		return assignConfig{}, err
+	}
+	if !conf.Code.set {
+		return assignConfig{}, fmt.Errorf("assignment must have code")
+	}
+	if string(conf.Code.code) != code {
+		return assignConfig{}, fmt.Errorf("assignment code in config (%v) does not match expected code (%v)", string(conf.Code.code), code)
+	}
+	if len(conf.Problems) == 0 {
+		return assignConfig{}, fmt.Errorf("assignment has no problems")
+	}
+	if conf.Due.set && len(conf.Handins) != 0 {
+		return assignConfig{}, fmt.Errorf("assignment cannot have due date and handins")
+	}
+	if len(conf.Handins) == 1 {
+		return assignConfig{}, fmt.Errorf("assignment cannot have one handin - instead just use a due date")
 	}
 
-	return res, nil
+	var validateProblem func(path string, p problem) error
+	validateProblem = func(path string, p problem) error {
+		if !p.Code.set {
+			return fmt.Errorf("problem must have code: %v", path)
+		}
+		if p.Points.set && len(p.SubProblems) > 0 {
+			return fmt.Errorf("problem cannot have points and subproblems: %v", path)
+		}
+		if !p.Points.set && len(p.SubProblems) == 0 {
+			return fmt.Errorf("problem must have points or subproblems: %v", path)
+		}
+		probs := make(map[string]bool)
+		for _, pp := range p.SubProblems {
+			if probs[string(pp.Code.code)] {
+				return fmt.Errorf("duplicate subproblem name: %v.%v", path, pp.Code)
+			}
+			probs[string(pp.Code.code)] = true
+			if err := validateProblem(path+"."+string(pp.Code.code), pp); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	probs := make(map[string]bool)
+	for _, p := range conf.Problems {
+		if probs[string(p.Code.code)] {
+			return assignConfig{}, fmt.Errorf("duplicate problem code: %v", p.Code)
+		}
+		probs[string(p.Code.code)] = true
+		if err := validateProblem(string(p.Code.code), p); err != nil {
+			return assignConfig{}, err
+		}
+	}
+	// now probs contains all problems
+	if !conf.Due.set {
+		for _, h := range conf.Handins {
+			for _, p := range h.Problems {
+				notSeen, ok := probs[string(p)]
+				if !ok {
+					return assignConfig{}, fmt.Errorf("unknown problem in handin \"%v\": %v", h.Code, p)
+				}
+				if !notSeen {
+					return assignConfig{}, fmt.Errorf("problem in multiple handins: %v", p)
+				}
+				probs[string(p)] = false
+			}
+		}
+		for p, notSeen := range probs {
+			if notSeen {
+				return assignConfig{}, fmt.Errorf("problem not in any handins: %v", p)
+			}
+		}
+	}
+	return conf, nil
 }

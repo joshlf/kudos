@@ -44,7 +44,7 @@ type globalConfigFile struct {
 // CourseEnvVar (case inensitive).
 func InitConfig(config *pflag.Flag, course *pflag.Flag) error {
 	if course != nil && strings.ToLower(course.Name) != strings.ToLower(CourseEnvVar) {
-		panic("internal error: course.Name differs from CourseEnvVar")
+		panic("config: course.Name differs from CourseEnvVar")
 	}
 
 	if config != nil && config.Changed {
@@ -81,6 +81,6 @@ func init() {
 	// on usage issues (in particular, when 0 args are
 	// passed); this call should never return an error
 	if err := viper.BindEnv(CourseEnvVar); err != nil {
-		panic(fmt.Errorf("internal error: %v", err))
+		panic(fmt.Errorf("config: internal error: %v", err))
 	}
 }

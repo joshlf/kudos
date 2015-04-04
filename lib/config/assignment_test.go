@@ -1,110 +1,78 @@
 package config
 
 import (
-	"bytes"
-	"io/ioutil"
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/BurntSushi/toml"
 )
 
 const TestFile = "testdata/sample_spec.toml"
+const TestAssignmentConfig1 = "testdata/test_assignment_1.toml"
+const TestAssignmentConfig2 = "testdata/test_assignment_2.toml"
 
-func TestDecoding(t *testing.T) {
-
-	var asgn AssignSpec
+func TestExample(t *testing.T) {
 	tm, _ := timeparse("Jul 4, 2015 at 12:00am (EST)")
-	dur, _ := time.ParseDuration("4m")
-	expected := AssignSpec{
-		Name: "generic-assignment",
-		Problem: []Problem{
-			Problem{
-				Name:  "funtimes!",
-				Files: []string{"file1.c", "file1.readme"},
-				Total: GradeNum(40),
+	expect := assignConfig{
+		Code:    optionalCode{"assign01", true},
+		Name:    optionalString{"Assignment 01", true},
+		Due:     optionalDate{date(tm), true},
+		Handins: nil,
+		Problems: []problem{
+			problem{
+				Code:        optionalCode{"prob1", true},
+				Name:        optionalString{"Problem 1", true},
+				Points:      optionalNumber{50, true},
+				SubProblems: nil,
 			},
-			Problem{
-				Name:  "oh great!",
-				Files: []string{"file2.c"},
-				Total: GradeNum(20),
-			},
-		},
-		Handin: Handin{
-			Due:   date{tm},
-			Grace: duration{dur},
-		},
-	}
-	var testStr []byte
-	var err error
-
-	if testStr, err = ioutil.ReadFile(TestFile); err != nil {
-		t.Fatalf("Cannot find %v file!", TestFile)
-	}
-
-	if _, err = toml.Decode(string(testStr), &asgn); err != nil {
-		t.Fatalf("Error decoding file:\n\t %v", err)
-	}
-
-	if !reflect.DeepEqual(asgn, expected) {
-		t.Fatalf("Expected \n%v\n, Got \n%v\n", expected, asgn)
-	}
-
-}
-
-func TestEmitRubric(t *testing.T) {
-	tm, _ := timeparse("Jul 4, 2015 at 12:00am (EST)")
-	dur, _ := time.ParseDuration("4m")
-	var b bytes.Buffer
-
-	orig := &AssignSpec{
-		Name: "generic-assignment",
-		Problem: []Problem{
-			Problem{
-				Name:  "funtimes!",
-				Files: []string{"file1.c", "file1.readme"},
-				Total: GradeNum(40),
-			},
-			Problem{
-				Name:  "oh great!",
-				Files: []string{"file2.c"},
-				Total: GradeNum(20),
-			},
-		},
-		Handin: Handin{
-			Due:   date{tm},
-			Grace: duration{dur},
-		},
-	}
-
-	orig.Rubric().WriteTOML(&b)
-
-	var rubric Rubric
-	if _, err := toml.DecodeReader(&b, &rubric); err != nil {
-		t.Fatal("Unable to re-decode the rubric template:\n%v", err)
-	}
-
-	expected := Rubric{
-		Assignment: "generic-assignment",
-		Grader:     "",
-		Grade: []Grade{
-			Grade{
-				Problem:  "funtimes!",
-				Comment:  "",
-				Score:    GradeNum(0),
-				Possible: GradeNum(40),
-			},
-			Grade{
-				Problem:  "oh great!",
-				Comment:  "",
-				Score:    GradeNum(0),
-				Possible: GradeNum(20),
+			problem{
+				Code:   optionalCode{"prob2", true},
+				Name:   optionalString{"Problem 2", true},
+				Points: optionalNumber{0, false},
+				SubProblems: []problem{
+					problem{
+						Code:        optionalCode{"a", true},
+						Name:        optionalString{"", false},
+						Points:      optionalNumber{25, true},
+						SubProblems: nil,
+					},
+					problem{
+						Code:        optionalCode{"b", true},
+						Name:        optionalString{"", false},
+						Points:      optionalNumber{25, true},
+						SubProblems: nil,
+					},
+				},
 			},
 		},
 	}
-	if !reflect.DeepEqual(expected, rubric) {
-		t.Fatalf("Expected \n%v\n, Got \n%v\n", expected, rubric)
+
+	conf, err := readAssignConfig("assign01", TestAssignmentConfig1)
+	if err != nil {
+		t.Fatalf("unexpected error reading config: %v", err)
+	}
+	if !reflect.DeepEqual(conf, expect) {
+		t.Errorf("got unexpected config: %#v", conf)
 	}
 
+	expect.Due = optionalDate{set: false}
+	expect.Handins = []handin{
+		handin{
+			Code:     optionalCode{"first", true},
+			Due:      optionalDate{date(tm), true},
+			Problems: []code{"prob1"},
+		},
+		handin{
+			Code:     optionalCode{"second", true},
+			Due:      optionalDate{date(tm.Add(time.Hour * time.Duration(24))), true},
+			Problems: []code{"prob2"},
+		},
+	}
+
+	conf, err = readAssignConfig("assign01", TestAssignmentConfig2)
+	if err != nil {
+		t.Fatalf("unexpected error reading config: %v", err)
+	}
+	if !reflect.DeepEqual(conf, expect) {
+		t.Errorf("got unexpected config: %#v", conf)
+	}
 }

@@ -56,9 +56,9 @@ func PerformFaclHandin(metadata HandinMetadata, target string) error {
 
 // TODO(synful): have this take a slice of student
 // config objects instead of uid strings
-func InitFaclHandin(coursePath string, cfg config.CourseConfig, spec config.AssignSpec, uids []string) (err error) {
+func InitFaclHandin(course config.Course, asgn config.Assignment, uids []string) (err error) {
 	// Note: assumes that spec.Name can be used as dir name
-	dir := filepath.Join(coursePath, string(cfg.HandinDir), spec.Name)
+	dir := asgn.HandinDir()
 
 	// need world r-x so students can cd in
 	// and write to their handin files
@@ -92,9 +92,9 @@ func InitFaclHandin(coursePath string, cfg config.CourseConfig, spec config.Assi
 	return nil
 }
 
-func InitSetgidHandin(coursePath string, cfg config.CourseConfig, spec config.AssignSpec) (err error) {
+func InitSetgidHandin(course config.Course, asgn config.Assignment) (err error) {
 	// Note: assumes that spec.Name can be used as dir name
-	dir := filepath.Join(coursePath, string(cfg.HandinDir), spec.Name)
+	dir := asgn.HandinDir()
 	err = os.Mkdir(dir, os.ModeDir|perm.Parse("rwxrwx---"))
 	if err != nil {
 		return fmt.Errorf("could not create handin dir: %v", err)

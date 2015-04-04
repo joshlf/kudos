@@ -11,25 +11,16 @@ import (
 )
 
 const (
-	CourseConfigDirName  = ".kudos"
-	CourseConfigFileName = "config.toml"
+	CourseConfigDirName      = ".kudos"
+	CourseConfigFileName     = "config.toml"
+	CourseHandinDirName      = "handin"
+	CourseAssignmentsDirName = "assignments"
 )
 
-type HandinDir string
-
-func (h *HandinDir) UnmarshalTOML(i interface{}) error {
-	path, ok := i.(string)
-	if !ok {
-		return fmt.Errorf("expected string value")
-	}
-	path = filepath.Clean(path)
-	if filepath.IsAbs(path) {
-		return fmt.Errorf("must be relative path")
-	}
-	*h = HandinDir(path)
-	return nil
-}
-
+// HandinMethod represents a method of
+// implementing handing in assignments
+// (either using facls or a setgid
+// program).
 type HandinMethod string
 
 const (
@@ -37,52 +28,107 @@ const (
 	SetgidMethod HandinMethod = "setgid"
 )
 
-func (h *HandinMethod) UnmarshalTOML(i interface{}) error {
+// So we don't have to export (HandinMethod).UnmarshalTOML
+type handinMethod HandinMethod
+
+func (h *handinMethod) UnmarshalTOML(i interface{}) error {
 	method, _ := i.(string)
 	hmethod := HandinMethod(strings.ToLower(method))
 	if hmethod != FaclMethod && hmethod != SetgidMethod {
 		return fmt.Errorf("allowed methods: %v, %v", FaclMethod, SetgidMethod)
 	}
-	*h = hmethod
+	*h = handinMethod(hmethod)
 	return nil
 }
 
-type CourseConfig struct {
-	Name             string       `toml:"name"`
-	TaGroup          string       `toml:"ta_group"`
-	StudentGroup     string       `toml:"student_group"`
-	HandinDir        HandinDir    `toml:"handin_dir"`
-	HandinMethod     HandinMethod `toml:"handin_method"`
-	ShortDescription string       `toml:"short_description"`
-	LongDescription  string       `toml:"long_description"`
+// Course represents the configuration of a course.
+type Course struct {
+	path   string
+	config courseConfig
 }
 
-func (c CourseConfig) WriteTOML(w io.Writer) (err error) {
+// Code returns c's code.
+func (c *Course) Code() string { return string(c.config.Code.code) }
+
+// Name returns the human-readbale
+// name of c. If one was not set
+// in the config file, it defaults
+// to c.Code().
+func (c *Course) Name() string {
+	if !c.config.Name.set {
+		return string(c.config.Code.code)
+	}
+	return c.config.Name.string
+}
+
+// TaGroup returns the name of c's TA group.
+func (c *Course) TaGroup() string { return c.config.TaGroup.string }
+
+// StudentGroup returns the name of c's student group.
+func (c *Course) StudentGroup() string { return c.config.StudentGroup.string }
+
+// HandinMethod returns c's handin method.
+func (c *Course) HandinMethod() HandinMethod { return HandinMethod(c.config.HandinMethod.handinMethod) }
+
+// DescriptionSet returns whether c's config
+// specified a description.
+func (c *Course) DescriptionSet() bool { return c.config.Description.set }
+
+// Description returns c's description, or
+// the empty string if c.DescriptionSet() == false.
+func (c *Course) Description() string {
+	if !c.config.Description.set {
+		// Could probably rely on this
+		// being the zero value of
+		// c.config.Description.string,
+		// but this is safer.
+		return ""
+	}
+	return c.config.Description.string
+}
+
+func (c *Course) ConfigDir() string  { return filepath.Join(c.path, CourseConfigDirName) }
+func (c *Course) ConfigFile() string { return filepath.Join(c.ConfigDir(), CourseConfigFileName) }
+func (c *Course) HandinDir() string  { return filepath.Join(c.ConfigDir(), CourseHandinDirName) }
+func (c *Course) AssignmentsDir() string {
+	return filepath.Join(c.ConfigDir(), CourseAssignmentsDirName)
+}
+
+type courseConfig struct {
+	Code         optionalCode         `toml:"code"` // Guaranteed to be set
+	Name         optionalString       `toml:"name"`
+	TaGroup      optionalString       `toml:"ta_group"`      // Guaranteed to be set
+	StudentGroup optionalString       `toml:"student_group"` // Guaranteed to be set
+	HandinMethod optionalHandinMethod `toml:"handin_method"` // Guaranteed to be set
+	Description  optionalString       `toml:"description"`
+}
+
+func (c courseConfig) WriteTOML(w io.Writer) (err error) {
 	return toml.NewEncoder(w).Encode(&c)
 }
 
-func DefaultCourseConfig() CourseConfig {
-	return CourseConfig{
-		Name:             "cs101",
-		TaGroup:          "cs101tas",
-		StudentGroup:     "cs101students",
-		HandinDir:        HandinDir("handin"),
-		HandinMethod:     FaclMethod,
-		ShortDescription: "CS 101",
-		LongDescription:  "This is an introductory course in CS.",
-	}
-}
-
-func ReadCourseConfig(course, coursePath string) (CourseConfig, error) {
+func ReadCourseConfig(course, coursePath string) (Course, error) {
 	confPath := filepath.Join(coursePath, CourseConfigDirName, CourseConfigFileName)
 	log.Debug.Printf("reading course config file: %v\n", confPath)
-	var conf CourseConfig
+	var conf courseConfig
 	_, err := toml.DecodeFile(confPath, &conf)
 	if err != nil {
-		return CourseConfig{}, fmt.Errorf("could not parse course config: %v", err)
+		return Course{}, fmt.Errorf("could not parse course config: %v", err)
 	}
-	if course != conf.Name {
-		return CourseConfig{}, fmt.Errorf("course name in config (%v) does not match expected name (%v)", conf.Name, course)
+	if !conf.Code.set {
+		return Course{}, fmt.Errorf("course code must be set")
 	}
-	return conf, nil
+	if course != string(conf.Code.code) {
+		return Course{}, fmt.Errorf("course code in config (%v) does not match expected code (%v)", string(conf.Code.code), course)
+	}
+	if !conf.TaGroup.set {
+		return Course{}, fmt.Errorf("ta_group must be set")
+	}
+	if !conf.StudentGroup.set {
+		return Course{}, fmt.Errorf("student_group must be set")
+	}
+	if !conf.HandinMethod.set {
+		return Course{}, fmt.Errorf("handin_method must be set")
+	}
+	return Course{coursePath, conf}, nil
 }
