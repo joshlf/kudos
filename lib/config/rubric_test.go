@@ -94,3 +94,31 @@ func TestReadRubricFile(t *testing.T) {
 		t.Errorf("unexpected rubric: %v", r)
 	}
 }
+
+func TestMethods(t *testing.T) {
+	a, err := readAssignConfig("assign01", TestAssignmentConfig1)
+	if err != nil {
+		t.Fatalf("error reading assignment config: %v", err)
+	}
+	r, err := ReadRubricFile(Assignment{a, Course{}}, TestRubric)
+	if err != nil {
+		t.Fatalf("error reading rubric: %v", err)
+	}
+
+	code := r.AssignmentCode()
+	if code != "assign01" {
+		t.Errorf("unexpected course code: want %v; got %v", "assign01", code)
+	}
+
+	expect := []Grade{{"prob1", "Almost", 45, nil}, {"prob2", "", 0, []Grade{{"a", "Good!", 25, nil}, {"b", "You missed a few", 15, nil}}}}
+	grades := r.Grades()
+	if !reflect.DeepEqual(expect, grades) {
+		t.Errorf("unexpected grades slice: want %v; got %v", expect, grades)
+	}
+
+	expectScores := []float64{45, 40, 25, 15}
+	scores := []float64{grades[0].Score(), grades[1].Score(), grades[1].Grades[0].Score(), grades[1].Grades[1].Score()}
+	if !reflect.DeepEqual(expectScores, scores) {
+		t.Errorf("unexpected scores slice: want %v; got %v", expect, scores)
+	}
+}
