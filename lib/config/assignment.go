@@ -47,7 +47,6 @@ func (a Assignment) HasMultipleHandins() bool { return !a.conf.Due.set }
 // panics; in this case, callers should
 // instead use a.Due().
 func (a Assignment) Handins() []Handin {
-	// TODO(synful): impelment
 	if !a.HasMultipleHandins() {
 		panic("config: does not have multiple handins")
 	}

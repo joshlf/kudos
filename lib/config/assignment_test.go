@@ -1,7 +1,9 @@
 package config
 
 import (
+	"io/ioutil"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -75,4 +77,123 @@ func TestExample(t *testing.T) {
 	if !reflect.DeepEqual(conf, expect) {
 		t.Errorf("got unexpected config: %#v", conf)
 	}
+}
+
+func TestAssignmentMethods(t *testing.T) {
+	conf, err := readAssignConfig("assign01", TestAssignmentConfig1)
+	if err != nil {
+		t.Fatalf("unexpected error reading config: %v", err)
+	}
+	asgn := Assignment{conf: conf}
+	tm, _ := timeparse("Jul 4, 2015 at 12:00am (EST)")
+	expect := []interface{}{"assign01", "Assignment 01", tm, false, ".kudos/handin/assign01"}
+	got := []interface{}{asgn.Code(), asgn.Name(), asgn.Due(), asgn.HasMultipleHandins(), asgn.HandinDir()}
+	if !reflect.DeepEqual(expect, got) {
+		t.Errorf("unexpected return values: want %v; got %v", expect, got)
+	}
+
+	// NOTE: The types here are really tricky,
+	// and it's very easy to mess it up (since
+	// they're slices of interfaces, and thus
+	// there's no static checking). If the
+	// test is failing, make sure to check that
+	// all types line up properly (for example,
+	// you did 50.0 instead of 50, type(nil)
+	// instead of an untyped nil, etc).
+	probs := asgn.Problems()
+	expect = []interface{}{"prob1", "Problem 1", 50.0, []Problem(nil), "prob2", "Problem 2", 50.0, 2, "a", "a", 25.0,
+		[]Problem(nil), "b", "b", 25.0, []Problem(nil)}
+	got = []interface{}{probs[0].Code, probs[0].Name(), probs[0].Points(), probs[0].SubProblems, probs[1].Code,
+		probs[1].Name(), probs[1].Points(), len(probs[1].SubProblems), probs[1].SubProblems[0].Code,
+		probs[1].SubProblems[0].Name(), probs[1].SubProblems[0].Points(), probs[1].SubProblems[0].SubProblems,
+		probs[1].SubProblems[1].Code, probs[1].SubProblems[1].Name(), probs[1].SubProblems[1].Points(),
+		probs[1].SubProblems[1].SubProblems}
+	if !reflect.DeepEqual(expect, got) {
+		t.Errorf("unexpected return values: want \n%#v; \ngot \n%#v", expect, got)
+	}
+
+	testPanic(t, func() { asgn.Handins() }, "config: does not have multiple handins")
+	asgn.conf.Name.set = false
+	if asgn.Name() != "assign01" {
+		t.Errorf("unexpected name; want %v; got %v", "assign01", asgn.Name())
+	}
+
+	asgn.conf.Due = optionalDate{set: false}
+	asgn.conf.Handins = []handin{
+		handin{
+			Code:     optionalCode{"first", true},
+			Due:      optionalDate{date(tm), true},
+			Problems: []code{"prob1"},
+		},
+		handin{
+			Code:     optionalCode{"second", true},
+			Due:      optionalDate{date(tm.Add(time.Hour * time.Duration(24))), true},
+			Problems: []code{"prob2"},
+		},
+	}
+	handins := asgn.Handins()
+	expect = []interface{}{"first", tm, 1, "second", tm.Add(time.Hour * time.Duration(24)), 1}
+	got = []interface{}{handins[0].Code, handins[0].Due, len(handins[0].Problems),
+		handins[1].Code, handins[1].Due, len(handins[1].Problems)}
+	if !reflect.DeepEqual(expect, got) {
+		t.Errorf("unexpected return values: want \n%#v; \ngot \n%#v", expect, got)
+	}
+
+	testPanic(t, func() { asgn.Due() }, "config: has multiple handins")
+}
+
+func TestReadAssignConfigError(t *testing.T) {
+	testError(t, func() error { _, err := readAssignConfig("", "/nonexistant/file"); return err },
+		"open /nonexistant/file: no such file or directory")
+
+	tmp, err := ioutil.TempFile("", "test_kudos")
+	if err != nil {
+		t.Fatalf("could not create temp file: %v", err)
+	}
+
+	writeContents := func(contents string) {
+		_, _, line, _ := runtime.Caller(1)
+		_, err := tmp.Seek(0, 0)
+		if err != nil {
+			t.Fatalf("line %v: could not seek: %v", line, err)
+		}
+
+		_, err = tmp.Write([]byte(contents))
+		if err != nil {
+			t.Fatalf("line %v: could not write contents: %v", line, err)
+		}
+	}
+	var code string
+	f := func() error { _, err := readAssignConfig(code, tmp.Name()); return err }
+
+	writeContents("")
+	testError(t, f, "assignment must have code")
+
+	writeContents(`code = "foo"`)
+	code = "bar"
+	testError(t, f, "assignment code in config (foo) does not match expected code (bar)")
+
+	code = "foo"
+	testError(t, f, "assignment has no problems")
+
+	contents := `code = "foo"
+	due = ""`
+	writeContents(contents)
+	testError(t, f, `Type mismatch for 'config.assignConfig.due': parsing time "" as "Jan 2, 2006 at 3:04pm (MST)": cannot parse "" as "Jan"`)
+
+	contents = `code = "foo"
+	due = "Jan 2, 2006 at 3:04pm (MST)"
+	[[handin]]
+	[[problem]]`
+	writeContents(contents)
+	testError(t, f, "assignment cannot have due date and handins")
+
+	contents = `code = "foo"
+	[[handin]]
+	[[problem]]`
+	writeContents(contents)
+	// testError(t, f, "assignment cannot have one handin - instead just use a due date")
+
+	// TODO(synful): the rest of the error cases
+	// in readAssignConfig (see -test.cover output)
 }

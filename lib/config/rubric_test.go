@@ -95,7 +95,7 @@ func TestReadRubricFile(t *testing.T) {
 	}
 }
 
-func TestMethods(t *testing.T) {
+func TestRubricMethods(t *testing.T) {
 	a, err := readAssignConfig("assign01", TestAssignmentConfig1)
 	if err != nil {
 		t.Fatalf("error reading assignment config: %v", err)
