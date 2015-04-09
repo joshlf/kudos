@@ -153,14 +153,19 @@ func TestReadAssignConfigError(t *testing.T) {
 
 	writeContents := func(contents string) {
 		_, _, line, _ := runtime.Caller(1)
-		_, err := tmp.Seek(0, 0)
+		err := tmp.Truncate(0)
 		if err != nil {
-			t.Fatalf("line %v: could not seek: %v", line, err)
+			t.Fatalf("line %v: could not truncate: %v", line, err)
 		}
-
 		_, err = tmp.Write([]byte(contents))
 		if err != nil {
 			t.Fatalf("line %v: could not write contents: %v", line, err)
+		}
+		// Otherwise os.Open() will return a file
+		// which is already seeked to the end.
+		_, err = tmp.Seek(0, 0)
+		if err != nil {
+			t.Fatalf("line %v: could not seek: %v", line, err)
 		}
 	}
 	var code string
@@ -177,23 +182,173 @@ func TestReadAssignConfigError(t *testing.T) {
 	testError(t, f, "assignment has no problems")
 
 	contents := `code = "foo"
-	due = ""`
+due = ""
+`
 	writeContents(contents)
 	testError(t, f, `Type mismatch for 'config.assignConfig.due': parsing time "" as "Jan 2, 2006 at 3:04pm (MST)": cannot parse "" as "Jan"`)
 
 	contents = `code = "foo"
-	due = "Jan 2, 2006 at 3:04pm (MST)"
-	[[handin]]
-	[[problem]]`
+due = "Jan 2, 2006 at 3:04pm (MST)"
+[[handin]]
+[[problem]]
+`
 	writeContents(contents)
 	testError(t, f, "assignment cannot have due date and handins")
 
 	contents = `code = "foo"
-	[[handin]]
-	[[problem]]`
+[[handin]]
+[[problem]]
+`
 	writeContents(contents)
-	// testError(t, f, "assignment cannot have one handin - instead just use a due date")
+	testError(t, f, "assignment cannot have one handin - instead just use a due date")
 
-	// TODO(synful): the rest of the error cases
-	// in readAssignConfig (see -test.cover output)
+	contents = `code = "foo"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+[[problem]]
+`
+	writeContents(contents)
+	testError(t, f, "all problems must have a code")
+
+	contents = `code = "foo"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+[[problem]]
+code = "prob1"
+points = 0
+[[problem.subproblem]]
+`
+	writeContents(contents)
+	testError(t, f, "problem cannot have points and subproblems: prob1")
+
+	contents = `code = "foo"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+[[problem]]
+code = "prob1"
+`
+	writeContents(contents)
+	testError(t, f, "problem must have points or subproblems: prob1")
+
+	contents = `code = "foo"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+[[problem]]
+code = "prob1"
+[[problem.subproblem]]
+code = "prob1"
+`
+	writeContents(contents)
+	testError(t, f, "problem must have points or subproblems: prob1.prob1")
+
+	contents = `code = "foo"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+[[problem]]
+code = "prob1"
+points = 0
+[[problem]]
+code = "prob1"
+`
+	writeContents(contents)
+	testError(t, f, "duplicate problem code: prob1")
+
+	contents = `code = "foo"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+[[problem]]
+code = "prob1"
+[[problem.subproblem]]
+code = "prob1"
+points = 0
+[[problem.subproblem]]
+code = "prob1"
+points = 0
+`
+	writeContents(contents)
+	testError(t, f, "duplicate subproblem code: prob1.prob1")
+
+	contents = `code = "foo"
+[[handin]]
+[[handin]]
+[[problem]]
+code = "prob1"
+points = 0
+`
+	writeContents(contents)
+	testError(t, f, "all handins must have a code")
+
+	contents = `code = "foo"
+[[handin]]
+code = "handin1"
+[[handin]]
+code = "handin2"
+[[problem]]
+code = "prob1"
+points = 0
+`
+	writeContents(contents)
+	testError(t, f, "handin must have due date: handin1")
+
+	contents = `code = "foo"
+[[handin]]
+code = "handin1"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+[[handin]]
+code = "handin2"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+[[problem]]
+code = "prob1"
+points = 0
+`
+	writeContents(contents)
+	testError(t, f, "handin must have problems: handin1")
+
+	contents = `code = "foo"
+[[handin]]
+code = "handin1"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+problems = ["prob1"]
+[[handin]]
+code = "handin1"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+problems = ["prob2"]
+[[problem]]
+code = "prob1"
+points = 0
+`
+	writeContents(contents)
+	testError(t, f, "unknown problem in handin handin1: prob2")
+
+	contents = `code = "foo"
+[[handin]]
+code = "handin1"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+problems = ["prob1"]
+[[handin]]
+code = "handin1"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+problems = ["prob1"]
+[[problem]]
+code = "prob1"
+points = 0
+`
+	writeContents(contents)
+	testError(t, f, "problem in multiple handins: prob1")
+
+	contents = `code = "foo"
+[[handin]]
+code = "handin1"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+problems = ["prob1"]
+[[handin]]
+code = "handin1"
+due = "Jan 2, 2006 at 3:04pm (MST)"
+problems = ["prob2"]
+[[problem]]
+code = "prob1"
+points = 0
+[[problem]]
+code = "prob2"
+points = 0
+[[problem]]
+code = "prob3"
+points = 0
+`
+	writeContents(contents)
+	testError(t, f, "problem not in any handins: prob3")
 }

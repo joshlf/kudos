@@ -207,7 +207,9 @@ func readAssignConfig(code, file string) (assignConfig, error) {
 	var validateProblem func(path string, p problem) error
 	validateProblem = func(path string, p problem) error {
 		if !p.Code.set {
-			return fmt.Errorf("problem must have code: %v", path)
+			// Don't print the path since there was no code,
+			// so the path won't identify the problem.
+			return fmt.Errorf("all problems must have a code")
 		}
 		if p.Points.set && len(p.SubProblems) > 0 {
 			return fmt.Errorf("problem cannot have points and subproblems: %v", path)
@@ -218,7 +220,7 @@ func readAssignConfig(code, file string) (assignConfig, error) {
 		probs := make(map[string]bool)
 		for _, pp := range p.SubProblems {
 			if probs[string(pp.Code.code)] {
-				return fmt.Errorf("duplicate subproblem name: %v.%v", path, pp.Code)
+				return fmt.Errorf("duplicate subproblem code: %v.%v", path, pp.Code.code)
 			}
 			probs[string(pp.Code.code)] = true
 			if err := validateProblem(path+"."+string(pp.Code.code), pp); err != nil {
@@ -231,7 +233,7 @@ func readAssignConfig(code, file string) (assignConfig, error) {
 	probs := make(map[string]bool)
 	for _, p := range conf.Problems {
 		if probs[string(p.Code.code)] {
-			return assignConfig{}, fmt.Errorf("duplicate problem code: %v", p.Code)
+			return assignConfig{}, fmt.Errorf("duplicate problem code: %v", p.Code.code)
 		}
 		probs[string(p.Code.code)] = true
 		if err := validateProblem(string(p.Code.code), p); err != nil {
@@ -239,12 +241,23 @@ func readAssignConfig(code, file string) (assignConfig, error) {
 		}
 	}
 	// now probs contains all problems
+
+	// TODO(synful): check for handin codes
 	if !conf.Due.set {
 		for _, h := range conf.Handins {
+			if !h.Code.set {
+				return assignConfig{}, fmt.Errorf("all handins must have a code")
+			}
+			if !h.Due.set {
+				return assignConfig{}, fmt.Errorf("handin must have due date: %v", h.Code.code)
+			}
+			if len(h.Problems) == 0 {
+				return assignConfig{}, fmt.Errorf("handin must have problems: %v", h.Code.code)
+			}
 			for _, p := range h.Problems {
 				notSeen, ok := probs[string(p)]
 				if !ok {
-					return assignConfig{}, fmt.Errorf("unknown problem in handin \"%v\": %v", h.Code, p)
+					return assignConfig{}, fmt.Errorf("unknown problem in handin %v: %v", h.Code.code, p)
 				}
 				if !notSeen {
 					return assignConfig{}, fmt.Errorf("problem in multiple handins: %v", p)

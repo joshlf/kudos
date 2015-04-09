@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"testing"
 )
@@ -19,8 +20,9 @@ func testPanic(t *testing.T, f func(), panic string) {
 
 func testError(t *testing.T, f func() error, err string) {
 	_, file, line, _ := runtime.Caller(1)
+	file = filepath.Base(file)
 	got := f()
-	if got.Error() != err {
-		t.Errorf("unexpected error at %v:%v: want %v; got %v", file, line, err, got)
+	if got == nil || got.Error() != err {
+		t.Fatalf("unexpected error at %v:%v: want %v; got %v", file, line, err, got)
 	}
 }
