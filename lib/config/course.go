@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"strings"
 
@@ -101,10 +100,6 @@ type courseConfig struct {
 	StudentGroup optionalString       `toml:"student_group"` // Guaranteed to be set
 	HandinMethod optionalHandinMethod `toml:"handin_method"` // Guaranteed to be set
 	Description  optionalString       `toml:"description"`
-}
-
-func (c courseConfig) WriteTOML(w io.Writer) (err error) {
-	return toml.NewEncoder(w).Encode(&c)
 }
 
 func ReadCourseConfig(course, coursePath string) (Course, error) {
