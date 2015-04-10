@@ -23,16 +23,6 @@ func (n *number) UnmarshalTOML(i interface{}) error {
 	return nil
 }
 
-func (n number) MarshalText() ([]byte, error) {
-	// TODO(synful): This may be the behavior
-	// of fmt.Sprint anyway, so we can get rid
-	// of this method entirely
-	if number(int(n)) == n {
-		return []byte(fmt.Sprint(int(n))), nil
-	}
-	return []byte(fmt.Sprint(n)), nil
-}
-
 // This type should be used whenever
 // a safe code is needed (course code,
 // assignment code, problem code, etc)
