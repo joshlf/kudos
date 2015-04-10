@@ -79,6 +79,56 @@ func TestExample(t *testing.T) {
 	}
 }
 
+func TestReadAssignment(t *testing.T) {
+	course := Course{path: "testdata"}
+	tm, _ := timeparse("Jul 4, 2015 at 12:00am (EST)")
+	expect := Assignment{
+		course: course,
+		conf: assignConfig{
+			Code:    optionalCode{"assign01", true},
+			Name:    optionalString{"Assignment 01", true},
+			Due:     optionalDate{date(tm), true},
+			Handins: nil,
+			Problems: []problem{
+				problem{
+					Code:        optionalCode{"prob1", true},
+					Name:        optionalString{"Problem 1", true},
+					Points:      optionalNumber{50, true},
+					SubProblems: nil,
+				},
+				problem{
+					Code:   optionalCode{"prob2", true},
+					Name:   optionalString{"Problem 2", true},
+					Points: optionalNumber{0, false},
+					SubProblems: []problem{
+						problem{
+							Code:        optionalCode{"a", true},
+							Name:        optionalString{"", false},
+							Points:      optionalNumber{25, true},
+							SubProblems: nil,
+						},
+						problem{
+							Code:        optionalCode{"b", true},
+							Name:        optionalString{"", false},
+							Points:      optionalNumber{25, true},
+							SubProblems: nil,
+						},
+					},
+				},
+			},
+		},
+	}
+	a, err := ReadAssignment(course, "assign01")
+	if err != nil {
+		t.Fatalf("unexpected error reading assignment: %v", err)
+	}
+	if !reflect.DeepEqual(expect, a) {
+		t.Errorf("got unexpected config: %#v", a)
+	}
+	course.path = "/nonexistant/path"
+	testError(t, func() error { _, err := ReadAssignment(course, ""); return err }, "open /nonexistant/path/.kudos/assignments/.toml: no such file or directory")
+}
+
 func TestAssignmentMethods(t *testing.T) {
 	conf, err := readAssignConfig("assign01", TestAssignmentConfig1)
 	if err != nil {
@@ -146,7 +196,7 @@ func TestReadAssignConfigError(t *testing.T) {
 	testError(t, func() error { _, err := readAssignConfig("", "/nonexistant/file"); return err },
 		"open /nonexistant/file: no such file or directory")
 
-	tmp, err := ioutil.TempFile("", "test_kudos")
+	tmp, err := ioutil.TempFile("", "test_kudos_assignment")
 	if err != nil {
 		t.Fatalf("could not create temp file: %v", err)
 	}

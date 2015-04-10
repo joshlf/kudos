@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -52,6 +53,11 @@ func TestWriteRubricFile(t *testing.T) {
 	}
 }
 
+func TestWriteRubricFileError(t *testing.T) {
+	testPanic(t, func() { WriteRubricFileProblems(Assignment{}, nil, "") }, "config: no problems specified")
+	testPanic(t, func() { WriteRubricFileProblems(Assignment{}, []string{"foo"}, "") }, "config: unkown problem code")
+}
+
 func TestReadRubricFile(t *testing.T) {
 	expect := Rubric{
 		r: rubricFile{
@@ -93,6 +99,125 @@ func TestReadRubricFile(t *testing.T) {
 	if !reflect.DeepEqual(expect, r) {
 		t.Errorf("unexpected rubric: %v", r)
 	}
+}
+
+func TestReadRubricFileError(t *testing.T) {
+	testError(t, func() error { _, err := ReadRubricFile(Assignment{}, ""); return err },
+		"could not parse rubric: open : no such file or directory")
+
+	tmp, err := ioutil.TempFile("", "test_kudos_rubric")
+	if err != nil {
+		t.Fatalf("could not create temp file: %v", err)
+	}
+
+	writeContents := func(contents string) {
+		_, _, line, _ := runtime.Caller(1)
+		err := tmp.Truncate(0)
+		if err != nil {
+			t.Fatalf("line %v: could not truncate: %v", line, err)
+		}
+		_, err = tmp.Write([]byte(contents))
+		if err != nil {
+			t.Fatalf("line %v: could not write contents: %v", line, err)
+		}
+		// Otherwise os.Open() will return a file
+		// which is already seeked to the end.
+		_, err = tmp.Seek(0, 0)
+		if err != nil {
+			t.Fatalf("line %v: could not seek: %v", line, err)
+		}
+	}
+	asgn, err := readAssignConfig("assign01", TestAssignmentConfig1)
+	if err != nil {
+		t.Fatalf("unexpected error reading asignment: %v", err)
+	}
+	f := func() error { _, err := ReadRubricFile(Assignment{conf: asgn}, tmp.Name()); return err }
+
+	writeContents("bad = ")
+	testError(t, f, "could not parse rubric: Near line 1 (last key parsed 'bad'): Expected value but found '\\n' instead.")
+
+	writeContents("")
+	testError(t, f, "must have assignment code")
+
+	writeContents(`assignment = "assign02"`)
+	testError(t, f, "assignment code in rubric (assign02) does not match expected code (assign01)")
+
+	writeContents(`assignment = "assign01"`)
+	testError(t, f, "rubric has no grades")
+
+	contents := `assignment = "assign01"
+[[grade]]`
+	writeContents(contents)
+	testError(t, f, "all grades must specify problem code")
+
+	contents = `assignment = "assign01"
+[[grade]]
+problem = "prob"`
+	writeContents(contents)
+	testError(t, f, "unknown problem: prob")
+
+	contents = `assignment = "assign01"
+[[grade]]
+problem = "prob"`
+	writeContents(contents)
+	testError(t, f, "unknown problem: prob")
+
+	contents = `assignment = "assign01"
+[[grade]]
+problem = "prob1"
+[[grade.grade]]
+problem = "prob"`
+	writeContents(contents)
+	testError(t, f, "unknown problem: prob1.prob")
+
+	contents = `assignment = "assign01"
+[[grade]]
+problem = "prob1"
+score = 0
+[[grade.grade]]
+problem = "prob"`
+	writeContents(contents)
+	testError(t, f, "grade cannot specify score and sub-grades: prob1")
+
+	contents = `assignment = "assign01"
+[[grade]]
+problem = "prob1"`
+	writeContents(contents)
+	testError(t, f, "grade must specify score or sub-grades: prob1")
+
+	contents = `assignment = "assign01"
+[[grade]]
+problem = "prob1"
+score = 0
+[[grade]]
+problem = "prob2"`
+	writeContents(contents)
+	testError(t, f, "grade must specify score or sub-grades: prob2")
+
+	contents = `assignment = "assign01"
+[[grade]]
+problem = "prob1"
+score = 0
+[[grade]]
+problem = "prob2"
+[[grade.grade]]
+problem = "a"`
+	writeContents(contents)
+	testError(t, f, "grade must specify score or sub-grades: prob2.a")
+
+	contents = `assignment = "assign01"
+[[grade]]
+problem = "prob1"
+score = 0
+[[grade]]
+problem = "prob2"
+[[grade.grade]]
+problem = "a"
+score = 0
+[[grade.grade]]
+problem = "a"`
+	writeContents(contents)
+	testError(t, f, "duplicate grade for problem: prob2.a")
 }
 
 func TestRubricMethods(t *testing.T) {

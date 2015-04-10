@@ -220,7 +220,7 @@ func (g grade) toGrade() Grade {
 func ReadRubricFile(a Assignment, file string) (Rubric, error) {
 	var rf rubricFile
 	if _, err := toml.DecodeFile(file, &rf); err != nil {
-		return Rubric{}, err
+		return Rubric{}, fmt.Errorf("could not parse rubric: %v", err)
 	}
 	if !rf.AssignmentCode.set {
 		return Rubric{}, fmt.Errorf("must have assignment code")
@@ -231,18 +231,44 @@ func ReadRubricFile(a Assignment, file string) (Rubric, error) {
 	if len(rf.Grades) == 0 {
 		return Rubric{}, fmt.Errorf("rubric has no grades")
 	}
-	var rubric Rubric
-	rubric.r = rf
-	probs := mapFromProbs(a.Problems())
-	for _, g := range rf.Grades {
-		if !g.Problem.set {
-			fmt.Errorf("all grades must specify problem code")
+
+	var validateGrades func(grades []grade, problem []Problem, path string) error
+	validateGrades = func(grades []grade, problems []Problem, path string) error {
+		probs := mapFromProbs(problems)
+		used := make(map[string]bool)
+		for _, g := range grades {
+			if !g.Problem.set {
+				return fmt.Errorf("all grades must specify problem code")
+			}
+			code := string(g.Problem.code)
+			if path != "" {
+				code = path + "." + code
+			}
+			p, ok := probs[string(g.Problem.code)]
+			if !ok {
+				return fmt.Errorf("unknown problem: %v", code)
+			}
+			if used[string(g.Problem.code)] {
+				return fmt.Errorf("duplicate grade for problem: %v", code)
+			}
+			used[string(g.Problem.code)] = true
+			switch {
+			case g.Score.set && len(g.Grades) > 0:
+				return fmt.Errorf("grade cannot specify score and sub-grades: %v", code)
+			case !g.Score.set && len(g.Grades) == 0:
+				return fmt.Errorf("grade must specify score or sub-grades: %v", code)
+			}
+			err := validateGrades(g.Grades, p.SubProblems, code)
+			if err != nil {
+				return err
+			}
 		}
-		_, ok := probs[string(g.Problem.code)]
-		if !ok {
-			return Rubric{}, fmt.Errorf("unknown problem: %v", g.Problem)
-		}
+		return nil
 	}
-	// TODO(synful): validate subproblems
+	rubric := Rubric{r: rf}
+	err := validateGrades(rf.Grades, a.Problems(), "")
+	if err != nil {
+		return Rubric{}, err
+	}
 	return rubric, nil
 }

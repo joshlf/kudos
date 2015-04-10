@@ -241,8 +241,6 @@ func readAssignConfig(code, file string) (assignConfig, error) {
 		}
 	}
 	// now probs contains all problems
-
-	// TODO(synful): check for handin codes
 	if !conf.Due.set {
 		for _, h := range conf.Handins {
 			if !h.Code.set {
