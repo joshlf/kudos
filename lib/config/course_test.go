@@ -199,4 +199,7 @@ func TestInitCourse(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error running diff: %v", err)
 	}
+
+	testError(t, func() error { return InitCourse(course, coursePath, false) },
+		"course already initialized (.kudos directory already exists)")
 }

@@ -10,28 +10,6 @@ import (
 	"github.com/synful/kudos/lib/perm"
 )
 
-// TODO(synful): this may be broken.
-// First, if called like:
-// defer dirMaker()()
-// it would, on an "already exists"
-// error, attempt to remove the
-// existant dir (clearly wrong).
-//
-// Second, the order in which
-// the defered funcs are called
-// is important (otherwise you
-// might try removing /foo before
-// /foo/bar, so the first would
-// fail).
-func dirMaker(dir string, mode os.FileMode, err *error) func() {
-	*err = os.Mkdir(dir, mode)
-	return func() {
-		if *err != nil {
-			os.Remove(dir)
-		}
-	}
-}
-
 // InitCourse initializes course in the directory
 // coursePath. It panics if coursePath is not an
 // absolute path. It returns an error if course
@@ -70,19 +48,30 @@ func InitCourse(course, coursePath string, log bool) (err error) {
 	fileMode := perm.Parse("rw-rw-r--")
 
 	printf("creating %v\n", c.ConfigDir())
-	defer dirMaker(c.ConfigDir(), dirMode, &err)()
+	err = os.Mkdir(c.ConfigDir(), dirMode)
 	if err != nil {
-		return
+		if os.IsExist(err) {
+			return fmt.Errorf("course already initialized (%v directory already exists)", CourseConfigDirName)
+		}
+		return err
 	}
+	defer func() {
+		if err != nil {
+			err := os.RemoveAll(c.ConfigDir())
+			if err != nil {
+				printf("error cleaning up after error: %v", err)
+			}
+		}
+	}()
 
 	printf("creating %v\n", c.AssignmentsDir())
-	defer dirMaker(c.AssignmentsDir(), dirMode, &err)()
+	err = os.Mkdir(c.AssignmentsDir(), dirMode)
 	if err != nil {
 		return
 	}
 
 	printf("creating %v\n", c.HandinDir())
-	defer dirMaker(c.HandinDir(), dirMode, &err)()
+	err = os.Mkdir(c.HandinDir(), dirMode)
 	if err != nil {
 		return
 	}
@@ -92,7 +81,6 @@ func InitCourse(course, coursePath string, log bool) (err error) {
 	if err != nil {
 		return
 	}
-
 	_, err = file.Write(conf)
 	if err != nil {
 		return
@@ -104,7 +92,6 @@ func InitCourse(course, coursePath string, log bool) (err error) {
 	if err != nil {
 		return err
 	}
-
 	_, err = file.Write(assign)
 	if err != nil {
 		return
