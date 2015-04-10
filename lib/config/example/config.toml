@@ -1,5 +1,5 @@
 # Course's code. This must match the course directory name.
-# course = "cs101"
+# code = "cs101"
 
 # Human-readable name. This is optional, and will default
 # to the course code if not set.

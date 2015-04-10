@@ -26,7 +26,7 @@ func ReadAllAssignments(course Course) ([]Assignment, error) {
 			path := filepath.Join(adir, name)
 			conf, err := readAssignConfig(name[:len(name)-5], path)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%v: %v", path, err)
 			}
 			a = append(a, Assignment{conf, course})
 		}
@@ -69,13 +69,7 @@ func (a Assignment) Name() string {
 func (a Assignment) HasMultipleHandins() bool { return !a.conf.Due.set }
 
 // Handin returns all of the handins for a.
-// If a.HasMultipleHandins() == false, it
-// panics; in this case, callers should
-// instead use a.Due().
 func (a Assignment) Handins() []Handin {
-	if !a.HasMultipleHandins() {
-		panic("config: does not have multiple handins")
-	}
 	var h []Handin
 	for _, hh := range a.conf.Handins {
 		h = append(h, hh.toHandin(a.conf.Problems))
@@ -214,21 +208,36 @@ func readAssignConfig(code, file string) (assignConfig, error) {
 	if _, err := toml.DecodeFile(file, &conf); err != nil {
 		return assignConfig{}, err
 	}
-	if !conf.Code.set {
+	switch {
+	case !conf.Code.set:
 		return assignConfig{}, fmt.Errorf("assignment must have code")
-	}
-	if string(conf.Code.code) != code {
+	case string(conf.Code.code) != code:
 		return assignConfig{}, fmt.Errorf("assignment code in config (%v) does not match expected code (%v)", string(conf.Code.code), code)
-	}
-	if len(conf.Problems) == 0 {
+	case len(conf.Problems) == 0:
 		return assignConfig{}, fmt.Errorf("assignment has no problems")
-	}
-	if conf.Due.set && len(conf.Handins) != 0 {
+	case conf.Due.set && len(conf.Handins) != 0:
 		return assignConfig{}, fmt.Errorf("assignment cannot have due date and handins")
-	}
-	if len(conf.Handins) == 1 {
+	case !conf.Due.set && len(conf.Handins) == 0:
+		return assignConfig{}, fmt.Errorf("assignment must have due date or handins")
+	case len(conf.Handins) == 1:
 		return assignConfig{}, fmt.Errorf("assignment cannot have one handin - instead just use a due date")
 	}
+
+	// if !conf.Code.set {
+	// 	return assignConfig{}, fmt.Errorf("assignment must have code")
+	// }
+	// if string(conf.Code.code) != code {
+	// 	return assignConfig{}, fmt.Errorf("assignment code in config (%v) does not match expected code (%v)", string(conf.Code.code), code)
+	// }
+	// if len(conf.Problems) == 0 {
+	// 	return assignConfig{}, fmt.Errorf("assignment has no problems")
+	// }
+	// if conf.Due.set && len(conf.Handins) != 0 {
+	// 	return assignConfig{}, fmt.Errorf("assignment cannot have due date and handins")
+	// }
+	// if len(conf.Handins) == 1 {
+	// 	return assignConfig{}, fmt.Errorf("assignment cannot have one handin - instead just use a due date")
+	// }
 
 	var validateProblem func(path string, p problem) error
 	validateProblem = func(path string, p problem) error {

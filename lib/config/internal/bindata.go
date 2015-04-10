@@ -5,12 +5,12 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"strings"
 	"os"
+	"time"
+	"io/ioutil"
 	"path"
 	"path/filepath"
-	"strings"
-	"time"
 )
 
 func bindata_read(data []byte, name string) ([]byte, error) {
@@ -36,9 +36,9 @@ type asset struct {
 }
 
 type bindata_file_info struct {
-	name    string
-	size    int64
-	mode    os.FileMode
+	name string
+	size int64
+	mode os.FileMode
 	modTime time.Time
 }
 
@@ -76,12 +76,12 @@ func example_assignments_assignment_toml_sample() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindata_file_info{name: "example/assignments/assignment.toml.sample", size: 1345, mode: os.FileMode(420), modTime: time.Unix(1428354173, 0)}
-	a := &asset{bytes: bytes, info: info}
+	info := bindata_file_info{name: "example/assignments/assignment.toml.sample", size: 1345, mode: os.FileMode(420), modTime: time.Unix(1428358046, 0)}
+	a := &asset{bytes: bytes, info:  info}
 	return a, nil
 }
 
-var _example_config_toml = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x84\x92\x31\x6f\xe3\x30\x0c\x85\xf7\xfc\x0a\xc2\x19\x6e\xb9\x33\x2e\x3f\x20\x43\x90\xa5\x9d\x3a\x24\x7b\xa0\x58\x74\x24\x40\x12\x0d\x91\x42\xe1\x7f\x5f\x51\x76\xd2\xa0\x2d\x50\xc0\x93\xf4\xde\xc7\xa7\x47\x6f\xe1\x48\x25\x33\xfe\x61\x18\xc8\x62\x0f\x67\xe7\x19\x62\x61\x81\x68\x64\x70\x20\x0e\xeb\x8d\x4a\xc0\xfa\x8c\x83\x50\x9e\x21\x99\x88\xfd\x66\x7b\xbf\xd8\x43\x37\xf0\xee\xff\xae\xdb\xd4\xb3\x97\x12\x4d\xfa\x97\xd1\x58\x73\x0d\xb8\x48\x17\x6a\xfd\x68\x12\x4f\xc9\x84\xbf\x60\x92\x85\x77\x1f\x02\x58\x1c\x4d\x09\x52\x9d\x42\xcf\xd3\x34\x0e\xf8\x11\x12\x09\x30\x8a\x8e\x53\x96\x0e\x3b\x9e\xe0\x3e\xed\xec\x96\x11\x40\x63\x33\x9f\x0f\x70\xcb\x54\xa6\xe7\x87\x5c\x11\x78\xc2\xc1\x8f\x1e\xad\x62\xc4\x5c\x9a\xe6\x91\x5b\x0c\xff\x08\x63\x29\x16\x93\xfc\x4e\x5c\x85\x5f\xb0\xeb\xe9\x27\xdb\xd5\x47\xfb\x04\x11\xc5\x91\xed\xe1\xad\x95\xc1\x60\x32\x42\x37\x9a\x21\x74\xad\x95\xae\xbe\xf6\xe6\x6d\xa7\xe0\x57\xd1\xd6\x9c\xbf\xb9\x30\x43\x6d\x9f\x62\xc4\x64\xd1\x6a\x57\xa5\x96\xa4\x29\xd5\xb9\x32\xa1\xa4\x80\xcc\xd5\x38\xd7\x12\x81\x67\x16\x8c\x60\x09\x79\xa9\xb1\x4c\x13\x65\x69\x0e\x56\xfc\x12\xe8\xb2\x9a\xf7\x6b\x0a\x8d\x7b\xa8\x7b\xe1\x21\xfb\x16\xf1\xde\xc7\xb2\x99\xef\xdb\x54\x54\x93\x4f\xbe\xc9\x1f\x2b\x52\x91\x49\xe0\x93\x64\xb2\x65\xf9\x77\xd6\xf5\xd6\x1e\x8e\xa7\xbe\xdb\x7c\x04\x00\x00\xff\xff\x73\x39\xb3\x24\x81\x02\x00\x00")
+var _example_config_toml = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x84\x92\xbd\x6e\xe3\x30\x10\x84\x7b\x3f\xc5\x40\x2e\xae\xb9\x13\xce\x0f\xe0\xc2\x70\x93\x54\x29\xec\xde\xa0\xc5\x95\x49\x80\x3f\x02\x77\x89\x40\x6f\x1f\x92\x92\x1d\x23\x09\x10\xc0\x15\x3d\xf3\xed\xec\xac\xb6\x38\xc6\x9c\x98\xfe\x30\x86\xa8\xa9\xc7\xd9\x58\x86\xcf\x2c\xf0\x4a\x06\x03\x31\x54\xfe\xa9\x12\x68\x9b\x68\x90\x98\x66\x04\xe5\xa9\xdf\x6c\x9b\x05\x7b\x74\x03\xef\xfe\xef\xba\x4d\x79\x79\xc9\x5e\x85\x7f\x89\x94\x56\x57\x47\x8b\x70\x61\x96\x5f\x9c\xc4\xc6\xa0\xdc\x5f\xa8\xa0\xf1\x6e\x9d\x83\xa6\x51\x65\x27\xc5\x29\xf1\x79\x56\x23\xdb\x11\x21\x0a\x98\xa4\x0e\xab\xac\x3a\xec\x78\xc2\x7d\xda\xd9\x2c\x23\x10\xc7\x66\x3e\x1f\x70\x4b\x31\x4f\xcf\x6b\x5c\x09\x3c\xd1\x60\x47\x4b\xba\x62\x44\x5d\x9a\xe6\x91\x5b\x14\xff\x08\x63\xc9\x9a\x82\xfc\x4e\x5c\x85\x5f\xb0\xeb\xeb\x27\xdb\x94\xa5\x6d\x80\x27\x31\x51\xf7\x78\x6b\x65\x30\x54\x22\x74\xa3\x1a\x5c\xd7\x5a\xe9\xca\xb6\x37\xab\xbb\x0a\x7e\x95\xda\x9a\xb1\x37\xe3\x66\x94\xee\xa3\xf7\x14\x34\xe9\xda\x55\x2e\x25\xd5\x94\xd5\xb9\x32\x91\x83\x23\xe6\x62\x9c\x4b\x89\xe0\x99\x85\x3c\x74\x24\x5e\x6a\xcc\xd3\x14\x93\x34\x07\x57\xfc\x12\xe8\xb2\x9a\xf7\x6b\x8a\x1a\xf7\x50\xee\xc2\x43\xb2\x2d\xe2\xbd\x8f\xe5\x32\xdf\xaf\x59\x51\x4d\x3e\xd9\x26\x7f\x9c\xa8\x8a\x54\x80\x0d\x92\xa2\xce\xcb\x97\xb3\x9e\xb7\xf4\x70\x3c\xf5\xdd\xe6\x23\x00\x00\xff\xff\xbc\xbc\x1b\xab\x7f\x02\x00\x00")
 
 func example_config_toml_bytes() ([]byte, error) {
 	return bindata_read(
@@ -96,8 +96,8 @@ func example_config_toml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindata_file_info{name: "example/config.toml", size: 641, mode: os.FileMode(420), modTime: time.Unix(1428354206, 0)}
-	a := &asset{bytes: bytes, info: info}
+	info := bindata_file_info{name: "example/config.toml", size: 639, mode: os.FileMode(420), modTime: time.Unix(1428688121, 0)}
+	a := &asset{bytes: bytes, info:  info}
 	return a, nil
 }
 
@@ -120,7 +120,7 @@ func Asset(name string) ([]byte, error) {
 // It simplifies safe initialization of global variables.
 func MustAsset(name string) []byte {
 	a, err := Asset(name)
-	if err != nil {
+	if (err != nil) {
 		panic("asset: Asset(" + name + "): " + err.Error())
 	}
 
@@ -154,7 +154,7 @@ func AssetNames() []string {
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
 	"example/assignments/assignment.toml.sample": example_assignments_assignment_toml_sample,
-	"example/config.toml":                        example_config_toml,
+	"example/config.toml": example_config_toml,
 }
 
 // AssetDir returns the file names below a certain
@@ -193,61 +193,63 @@ func AssetDir(name string) ([]string, error) {
 }
 
 type _bintree_t struct {
-	Func     func() (*asset, error)
+	Func func() (*asset, error)
 	Children map[string]*_bintree_t
 }
-
 var _bintree = &_bintree_t{nil, map[string]*_bintree_t{
 	"example": &_bintree_t{nil, map[string]*_bintree_t{
 		"assignments": &_bintree_t{nil, map[string]*_bintree_t{
-			"assignment.toml.sample": &_bintree_t{example_assignments_assignment_toml_sample, map[string]*_bintree_t{}},
+			"assignment.toml.sample": &_bintree_t{example_assignments_assignment_toml_sample, map[string]*_bintree_t{
+			}},
 		}},
-		"config.toml": &_bintree_t{example_config_toml, map[string]*_bintree_t{}},
+		"config.toml": &_bintree_t{example_config_toml, map[string]*_bintree_t{
+		}},
 	}},
 }}
 
 // Restore an asset under the given directory
 func RestoreAsset(dir, name string) error {
-	data, err := Asset(name)
-	if err != nil {
-		return err
-	}
-	info, err := AssetInfo(name)
-	if err != nil {
-		return err
-	}
-	err = os.MkdirAll(_filePath(dir, path.Dir(name)), os.FileMode(0755))
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(_filePath(dir, name), data, info.Mode())
-	if err != nil {
-		return err
-	}
-	err = os.Chtimes(_filePath(dir, name), info.ModTime(), info.ModTime())
-	if err != nil {
-		return err
-	}
-	return nil
+        data, err := Asset(name)
+        if err != nil {
+                return err
+        }
+        info, err := AssetInfo(name)
+        if err != nil {
+                return err
+        }
+        err = os.MkdirAll(_filePath(dir, path.Dir(name)), os.FileMode(0755))
+        if err != nil {
+                return err
+        }
+        err = ioutil.WriteFile(_filePath(dir, name), data, info.Mode())
+        if err != nil {
+                return err
+        }
+        err = os.Chtimes(_filePath(dir, name), info.ModTime(), info.ModTime())
+        if err != nil {
+                return err
+        }
+        return nil
 }
 
 // Restore assets under the given directory recursively
 func RestoreAssets(dir, name string) error {
-	children, err := AssetDir(name)
-	if err != nil { // File
-		return RestoreAsset(dir, name)
-	} else { // Dir
-		for _, child := range children {
-			err = RestoreAssets(dir, path.Join(name, child))
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+        children, err := AssetDir(name)
+        if err != nil { // File
+                return RestoreAsset(dir, name)
+        } else { // Dir
+                for _, child := range children {
+                        err = RestoreAssets(dir, path.Join(name, child))
+                        if err != nil {
+                                return err
+                        }
+                }
+        }
+        return nil
 }
 
 func _filePath(dir, name string) string {
-	cannonicalName := strings.Replace(name, "\\", "/", -1)
-	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
+        cannonicalName := strings.Replace(name, "\\", "/", -1)
+        return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
+

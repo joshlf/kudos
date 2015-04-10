@@ -41,7 +41,7 @@ type globalConfigFile struct {
 //
 // InitConfig will panic if course is not
 // nil and course.Name differs from
-// CourseEnvVar (case inensitive).
+// CourseEnvVar (case insensitive).
 func InitConfig(config *pflag.Flag, course *pflag.Flag) error {
 	if course != nil && strings.ToLower(course.Name) != strings.ToLower(CourseEnvVar) {
 		panic("config: course.Name differs from CourseEnvVar")
@@ -70,7 +70,11 @@ func InitConfig(config *pflag.Flag, course *pflag.Flag) error {
 		return fmt.Errorf("could not parse config: %v", err)
 	}
 
-	Config.Course = viper.GetString(CourseEnvVar)
+	var code code
+	if err := code.UnmarshalTOML(viper.GetString(CourseEnvVar)); err != nil {
+		return fmt.Errorf("course code: %v", err)
+	}
+	Config.Course = string(code)
 	Config.CoursePath = filepath.Join(cfg.Course_path_prefix, Config.Course, cfg.Course_path_suffix)
 	return nil
 }

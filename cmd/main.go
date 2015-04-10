@@ -106,9 +106,17 @@ func common() {
 	}
 }
 
+var courseConfig config.Course
+
 func requireCourse() {
 	if config.Config.Course == "" {
 		log.Error.Printf("no course provided; please speficy one using the --course flag or the %v%v environment variable\n", config.EnvPrefix, config.CourseEnvVar)
+		dev.Fail()
+	}
+	var err error
+	courseConfig, err = config.ReadCourseConfig(config.Config.Course, config.Config.CoursePath)
+	if err != nil {
+		log.Error.Printf("could not read course config: %v\n", err)
 		dev.Fail()
 	}
 }

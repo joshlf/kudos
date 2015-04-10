@@ -136,8 +136,8 @@ func TestAssignmentMethods(t *testing.T) {
 	}
 	asgn := Assignment{conf: conf}
 	tm, _ := timeparse("Jul 4, 2015 at 12:00am (EST)")
-	expect := []interface{}{"assign01", "Assignment 01", tm, false, ".kudos/handin/assign01"}
-	got := []interface{}{asgn.Code(), asgn.Name(), asgn.Due(), asgn.HasMultipleHandins(), asgn.HandinDir()}
+	expect := []interface{}{"assign01", "Assignment 01", tm, false, []Handin(nil), ".kudos/handin/assign01"}
+	got := []interface{}{asgn.Code(), asgn.Name(), asgn.Due(), asgn.HasMultipleHandins(), asgn.Handins(), asgn.HandinDir()}
 	if !reflect.DeepEqual(expect, got) {
 		t.Errorf("unexpected return values: want %v; got %v", expect, got)
 	}
@@ -162,7 +162,6 @@ func TestAssignmentMethods(t *testing.T) {
 		t.Errorf("unexpected return values: want \n%#v; \ngot \n%#v", expect, got)
 	}
 
-	testPanic(t, func() { asgn.Handins() }, "config: does not have multiple handins")
 	asgn.conf.Name.set = false
 	if asgn.Name() != "assign01" {
 		t.Errorf("unexpected name; want %v; got %v", "assign01", asgn.Name())
