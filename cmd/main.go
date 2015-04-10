@@ -106,8 +106,6 @@ func common() {
 	}
 }
 
-var courseConfig config.Course
-
 func requireCourse() {
 	if !config.Config.CourseSet {
 		log.Error.Printf("no course provided; please speficy one using the --course flag or the %v%v environment variable\n", config.EnvPrefix, config.CourseEnvVar)
@@ -116,12 +114,13 @@ func requireCourse() {
 }
 
 // Implies requireCourse()
-func requireCourseConfig() {
+func requireCourseConfig() config.Course {
 	requireCourse()
-	var err error
-	courseConfig, err = config.ReadCourseConfig(config.Config.Course, config.Config.CoursePath)
+	conf, err := config.ReadCourseConfig(config.Config.Course, config.Config.CoursePath)
 	if err != nil {
 		log.Error.Printf("could not read course config: %v\n", err)
 		dev.Fail()
+		panic("unreachable")
 	}
+	return conf
 }

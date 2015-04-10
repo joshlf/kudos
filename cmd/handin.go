@@ -20,10 +20,10 @@ var cmdHandin = &cobra.Command{
 func init() {
 	f := func(cmd *cobra.Command, args []string) {
 		common()
-		requireCourse()
+		course := requireCourseConfig()
 		if len(args) == 0 {
 			log.Info.Printf("Usage: %v\n\n", cmd.Use)
-			asgns, err := config.ReadAllAssignments(courseConfig)
+			asgns, err := config.ReadAllAssignments(course)
 			if err != nil {
 				log.Error.Printf("could not read assignments: %v\n", err)
 				os.Exit(1)
