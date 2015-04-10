@@ -32,6 +32,9 @@ func InitCourse(course, coursePath string, log bool) (err error) {
 		printf = func(string, ...interface{}) {}
 	}
 
+	// We don't expect a panic, but it's more likely
+	// to happen here than in other functions because
+	// of the go-bindata calls (internal.MustAsset)
 	defer func() {
 		p := recover()
 		if p != nil {

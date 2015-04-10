@@ -200,6 +200,12 @@ func TestInitCourse(t *testing.T) {
 		t.Errorf("unexpected error running diff: %v", err)
 	}
 
+	testError(t, func() error { return InitCourse("foo/bar", coursePath, false) },
+		"contains illegal characters; must be alphanumeric or one of #+-:@^_")
+
+	testPanic(t, func() { InitCourse(course, "rel/path", false) },
+		"config: non-absolute coursePath")
+
 	testError(t, func() error { return InitCourse(course, coursePath, false) },
 		"course already initialized (.kudos directory already exists)")
 }
