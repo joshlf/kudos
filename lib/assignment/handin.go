@@ -57,7 +57,6 @@ func PerformFaclHandin(metadata HandinMetadata, target string) error {
 // TODO(synful): have this take a slice of student
 // config objects instead of uid strings
 func InitFaclHandin(course config.Course, asgn config.Assignment, uids []string) (err error) {
-	// Note: assumes that spec.Name can be used as dir name
 	dir := asgn.HandinDir()
 
 	// need world r-x so students can cd in
@@ -93,7 +92,6 @@ func InitFaclHandin(course config.Course, asgn config.Assignment, uids []string)
 }
 
 func InitSetgidHandin(course config.Course, asgn config.Assignment) (err error) {
-	// Note: assumes that spec.Name can be used as dir name
 	dir := asgn.HandinDir()
 	err = os.Mkdir(dir, os.ModeDir|perm.Parse("rwxrwx---"))
 	if err != nil {
