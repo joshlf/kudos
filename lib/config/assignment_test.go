@@ -402,3 +402,58 @@ points = 0
 	writeContents(contents)
 	testError(t, f, "problem not in any handins: prob3")
 }
+
+func TestReadAllAssignments(t *testing.T) {
+	course := Course{path: "testdata"}
+	tm, _ := timeparse("Jul 4, 2015 at 12:00am (EST)")
+	expectAssign := Assignment{
+		course: course,
+		conf: assignConfig{
+			Code:    optionalCode{"assign01", true},
+			Name:    optionalString{"Assignment 01", true},
+			Due:     optionalDate{date(tm), true},
+			Handins: nil,
+			Problems: []problem{
+				problem{
+					Code:        optionalCode{"prob1", true},
+					Name:        optionalString{"Problem 1", true},
+					Points:      optionalNumber{50, true},
+					SubProblems: nil,
+				},
+				problem{
+					Code:   optionalCode{"prob2", true},
+					Name:   optionalString{"Problem 2", true},
+					Points: optionalNumber{0, false},
+					SubProblems: []problem{
+						problem{
+							Code:        optionalCode{"a", true},
+							Name:        optionalString{"", false},
+							Points:      optionalNumber{25, true},
+							SubProblems: nil,
+						},
+						problem{
+							Code:        optionalCode{"b", true},
+							Name:        optionalString{"", false},
+							Points:      optionalNumber{25, true},
+							SubProblems: nil,
+						},
+					},
+				},
+			},
+		},
+	}
+	expect := []Assignment{expectAssign}
+	tm, _ = timeparse("Jul 5, 2015 at 12:00am (EST)")
+	expectAssign.conf.Code.code = code("assign02")
+	expectAssign.conf.Due.date = date(tm)
+	expectAssign.conf.Name.string = "Assignment 02"
+	expect = append(expect, expectAssign)
+
+	a, err := ReadAllAssignments(course)
+	if err != nil {
+		t.Fatalf("could not read assignment configs: %v", err)
+	}
+	if !reflect.DeepEqual(a, expect) {
+		t.Errorf("unexpected return: %#v", a)
+	}
+}

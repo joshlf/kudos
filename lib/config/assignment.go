@@ -2,11 +2,37 @@ package config
 
 import (
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"time"
 
 	"github.com/BurntSushi/toml"
 )
+
+func ReadAllAssignments(course Course) ([]Assignment, error) {
+	adir := course.AssignmentsDir()
+	entries, err := ioutil.ReadDir(adir)
+	if err != nil {
+		return nil, err
+	}
+	var a []Assignment
+	for _, e := range entries {
+		// TODO(synful): e.IsDir() isn't really good enough,
+		// but checking e.Mode().IsRegular() doesn't work
+		// either because we want to support symlinks, for
+		// example
+		name := e.Name()
+		if !e.IsDir() && len(name) > 5 && name[len(name)-5:] == ".toml" {
+			path := filepath.Join(adir, name)
+			conf, err := readAssignConfig(name[:len(name)-5], path)
+			if err != nil {
+				return nil, err
+			}
+			a = append(a, Assignment{conf, course})
+		}
+	}
+	return a, nil
+}
 
 func ReadAssignment(course Course, code string) (Assignment, error) {
 	adir := course.AssignmentsDir()
