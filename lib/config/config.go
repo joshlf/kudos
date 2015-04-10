@@ -23,6 +23,9 @@ const (
 // environment variables, etc) have
 // been taken into account.
 var Config = struct {
+	// Whether the course was set (either in an
+	// environment variable or on the command line)
+	CourseSet          bool
 	Course, CoursePath string
 }{}
 
@@ -54,6 +57,9 @@ func InitConfig(config *pflag.Flag, course *pflag.Flag) error {
 		viper.SetConfigFile(DefaultGlobalConfigFile)
 		log.Debug.Printf("using default global config: %v\n", DefaultGlobalConfigFile)
 	}
+	// viper.BindPFlag will make this true regardless
+	// of whether the flag was specified by the user
+	courseSet := viper.IsSet(CourseEnvVar) || course.Changed
 	if course != nil {
 		viper.BindPFlag(course.Name, course)
 		log.Debug.Printf("course set on command line: %v\n", course.Value)
@@ -70,12 +76,15 @@ func InitConfig(config *pflag.Flag, course *pflag.Flag) error {
 		return fmt.Errorf("could not parse config: %v", err)
 	}
 
-	var code code
-	if err := code.UnmarshalTOML(viper.GetString(CourseEnvVar)); err != nil {
-		return fmt.Errorf("course code: %v", err)
+	if courseSet {
+		var code code
+		if err := code.UnmarshalTOML(viper.GetString(CourseEnvVar)); err != nil {
+			return fmt.Errorf("course code: %v", err)
+		}
+		Config.CourseSet = true
+		Config.Course = viper.GetString(CourseEnvVar)
+		Config.CoursePath = filepath.Join(cfg.Course_path_prefix, Config.Course, cfg.Course_path_suffix)
 	}
-	Config.Course = string(code)
-	Config.CoursePath = filepath.Join(cfg.Course_path_prefix, Config.Course, cfg.Course_path_suffix)
 	return nil
 }
 

@@ -109,10 +109,15 @@ func common() {
 var courseConfig config.Course
 
 func requireCourse() {
-	if config.Config.Course == "" {
+	if !config.Config.CourseSet {
 		log.Error.Printf("no course provided; please speficy one using the --course flag or the %v%v environment variable\n", config.EnvPrefix, config.CourseEnvVar)
 		dev.Fail()
 	}
+}
+
+// Implies requireCourse()
+func requireCourseConfig() {
+	requireCourse()
 	var err error
 	courseConfig, err = config.ReadCourseConfig(config.Config.Course, config.Config.CoursePath)
 	if err != nil {
