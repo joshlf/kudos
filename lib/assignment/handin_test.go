@@ -6,12 +6,20 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	osuser "os/user"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/synful/kudos/lib/user"
 )
 
 func TestFaclHandin(t *testing.T) {
+	err := os.MkdirAll("course/.kudos/handin", 0700)
+	if err != nil {
+		t.Fatalf("could not create course directory structure: %v", err)
+	}
+
 	cwd, err := os.Getwd()
 
 	testDir, err := ioutil.TempDir(".", "kudos_test")
@@ -39,7 +47,8 @@ func TestFaclHandin(t *testing.T) {
 	}
 	defer os.Remove(target)
 
-	err = PerformFaclHandin(HandinMetadata{}, target)
+	u := user.UserFromOSUser(&osuser.User{Uid: "1337"})
+	err = PerformFaclHandin(target)
 	if err != nil {
 		t.Fatalf("could not perform handin: %v", err)
 	}
@@ -54,9 +63,8 @@ func TestFaclHandin(t *testing.T) {
 	tr := tar.NewReader(gr)
 
 	expected := map[string][]byte{
-		"./":                {},
-		"./.kudos_metadata": []byte("{}\n"),
-		"./foo":             []byte("foo\n"),
+		"./":    {},
+		"./foo": []byte("foo\n"),
 	}
 	got := make(map[string][]byte)
 	for i := 0; i < 3; i++ {

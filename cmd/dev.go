@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/synful/kudos/lib/assignment"
 	"github.com/synful/kudos/lib/build"
 	"github.com/synful/kudos/lib/config"
 	"github.com/synful/kudos/lib/db/json"
@@ -30,16 +29,15 @@ func init() {
 
 func printConstants() {
 	consts := map[string]interface{}{
-		"lib/db/json.ProviderName":              json.ProviderName,
-		"lib/build.DebugMode":                   build.DebugMode,
-		"lib/build.DevMode":                     build.DevMode,
-		"lib/build.Root":                        build.Root,
-		"lib/assignment.HandinMetadataFileName": assignment.HandinMetadataFileName,
-		"lib/config.DefaultGlobalConfigFile":    config.DefaultGlobalConfigFile,
-		"lib/config.EnvPrefix":                  config.EnvPrefix,
-		"lib/config.CourseEnvVar":               config.CourseEnvVar,
-		"lib/config.FaclMethod":                 config.FaclMethod,
-		"lib/config.SetgidMethod":               config.SetgidMethod,
+		"lib/db/json.ProviderName":           json.ProviderName,
+		"lib/build.DebugMode":                build.DebugMode,
+		"lib/build.DevMode":                  build.DevMode,
+		"lib/build.Root":                     build.Root,
+		"lib/config.DefaultGlobalConfigFile": config.DefaultGlobalConfigFile,
+		"lib/config.EnvPrefix":               config.EnvPrefix,
+		"lib/config.CourseEnvVar":            config.CourseEnvVar,
+		"lib/config.FaclMethod":              config.FaclMethod,
+		"lib/config.SetgidMethod":            config.SetgidMethod,
 	}
 	keys := make([]string, 0)
 	for k := range consts {

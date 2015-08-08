@@ -2,7 +2,6 @@ package assignment
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,36 +9,16 @@ import (
 
 	"github.com/synful/kudos/lib/config"
 	"github.com/synful/kudos/lib/perm"
+	"github.com/synful/kudos/lib/user"
 )
 
-const (
-	HandinMetadataFileName = ".kudos_metadata"
-)
-
-type HandinMetadata struct {
-	// TODO(synful)
-}
-
-func PerformFaclHandin(metadata HandinMetadata, target string) error {
-	// TODO(synful): reimplement using Go's tar package
-	// to eliminate the dependancy on tar and the need
-	// to first write the metadata file out to the dir.
-
-	mf, err := os.OpenFile(HandinMetadataFileName, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0666)
-	if err != nil {
-		return fmt.Errorf("could not create metadata file: %v", err)
-	}
-	defer mf.Close()
-
-	enc := json.NewEncoder(mf)
-	err = enc.Encode(metadata)
-	if err != nil {
-		return fmt.Errorf("could not write metadata file: %v", err)
-	}
-
+// PerformFaclHandin performs a handin of the current
+// directory for the assignment a and user u.
+func PerformFaclHandin(a config.Assignment, u user.User) error {
+	target := a.FaclHandinFile(u)
 	tf, err := os.OpenFile(target, os.O_RDWR, 0)
 	if err != nil {
-		return fmt.Errorf("could open target: %v", err)
+		return err
 	}
 	defer tf.Close()
 
@@ -53,6 +32,40 @@ func PerformFaclHandin(metadata HandinMetadata, target string) error {
 	}
 	return nil
 }
+
+// func PerformFaclHandin(target string) error {
+// 	// TODO(synful): reimplement using Go's tar package
+// 	// to eliminate the dependancy on tar and the need
+// 	// to first write the metadata file out to the dir.
+
+// 	// mf, err := os.OpenFile(HandinMetadataFileName, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0666)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("could not create metadata file: %v", err)
+// 	// }
+// 	// defer mf.Close()
+
+// 	// enc := json.NewEncoder(mf)
+// 	// err = enc.Encode(metadata)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("could not write metadata file: %v", err)
+// 	// }
+
+// 	tf, err := os.OpenFile(target, os.O_RDWR, 0)
+// 	if err != nil {
+// 		return fmt.Errorf("could open target: %v", err)
+// 	}
+// 	defer tf.Close()
+
+// 	cmd := exec.Command("tar", "c", ".")
+// 	gzw := gzip.NewWriter(tf)
+// 	defer gzw.Close()
+// 	cmd.Stdout = gzw
+// 	err = cmd.Run()
+// 	if err != nil {
+// 		return fmt.Errorf("could not write handin archive: %v", err)
+// 	}
+// 	return nil
+// }
 
 // TODO(synful): have this take a slice of student
 // config objects instead of uid strings

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/synful/kudos/lib/user"
 )
 
 func ReadAllAssignments(course Course) ([]Assignment, error) {
@@ -48,6 +49,18 @@ func ReadAssignment(course Course, code string) (Assignment, error) {
 type Assignment struct {
 	conf   assignConfig
 	course Course
+}
+
+// AssignmentByCode returns the Assignment with
+// the given code if it exists, and a boolean
+// indicating whether it was found.
+func AssignmentByCode(a []Assignment, code string) (asgn Assignment, ok bool) {
+	for _, aa := range a {
+		if code == aa.Code() {
+			return aa, true
+		}
+	}
+	return Assignment{}, false
 }
 
 // Code returns a's code.
@@ -92,6 +105,10 @@ func (a Assignment) HandinDir() string {
 	return filepath.Join(a.course.HandinDir(), string(a.conf.Code.code))
 }
 
+func (a Assignment) FaclHandinFile(u user.User) string {
+	return filepath.Join(a.HandinDir(), u.ID()+".tgz")
+}
+
 func (a Assignment) Problems() []Problem {
 	var p []Problem
 	for _, pp := range a.conf.Problems {
@@ -105,6 +122,18 @@ type Problem struct {
 	name        optionalString
 	points      float64
 	SubProblems []Problem
+}
+
+// ProblemByCode returns the Problem with
+// the given code if it exists, and a boolean
+// indicating whether it was found.
+func ProblemByCode(p []Problem, code string) (prob Problem, ok bool) {
+	for _, pp := range p {
+		if code == pp.Code {
+			return pp, true
+		}
+	}
+	return Problem{}, false
 }
 
 // Name returns the human-readbale
@@ -142,6 +171,18 @@ type Handin struct {
 	Code     string
 	Due      time.Time
 	Problems []Problem
+}
+
+// HandinByCode returns the Handin with
+// the given code if it exists, and a boolean
+// indicating whether it was found.
+func HandinByCode(h []Handin, code string) (handin Handin, ok bool) {
+	for _, hh := range h {
+		if code == hh.Code {
+			return hh, true
+		}
+	}
+	return Handin{}, false
 }
 
 type assignConfig struct {

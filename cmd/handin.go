@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/synful/kudos/lib/config"
 	"github.com/synful/kudos/lib/log"
+	"github.com/synful/kudos/lib/user"
 )
 
 var cmdHandin = &cobra.Command{
@@ -21,7 +22,8 @@ func init() {
 	f := func(cmd *cobra.Command, args []string) {
 		common()
 		course := requireCourseConfig()
-		if len(args) == 0 {
+		switch len(args) {
+		case 0:
 			log.Info.Printf("Usage: %v\n\n", cmd.Use)
 			asgns, err := config.ReadAllAssignments(course)
 			if err != nil {
@@ -44,9 +46,53 @@ func init() {
 					log.Info.Printf("%v]\n", h[len(h)-1].Code)
 				}
 			}
-			return
+		case 1:
+			asgns, err := config.ReadAllAssignments(course)
+			if err != nil {
+				log.Error.Printf("could not read assignments: %v\n", err)
+				os.Exit(1)
+			}
+			a, ok := config.AssignmentByCode(asgns, args[0])
+			if !ok {
+				log.Error.Printf("no such assignment: %v\n", args[0])
+				os.Exit(1)
+			}
+			if a.HasMultipleHandins() {
+				// TODO(synful): print more useful message,
+				// such as available handins?
+				log.Error.Printf("assignment has multiple handins; please specify one\n")
+				os.Exit(1)
+			}
+		case 2:
+			asgns, err := config.ReadAllAssignments(course)
+			if err != nil {
+				log.Error.Printf("could not read assignments: %v\n", err)
+				os.Exit(1)
+			}
+			a, ok := config.AssignmentByCode(asgns, args[0])
+			if !ok {
+				log.Error.Printf("no such assignment: %v\n", args[0])
+				os.Exit(1)
+			}
+			handins := a.Handins()
+			h, ok := config.HandinByCode(handins, args[1])
+			if !ok {
+				log.Error.Printf("no such handin: %v\n", args[1])
+				os.Exit(1)
+			}
+			// TODO(synful): temporary to suppress compiler errors
+			_ = h
+		default:
+			cmd.Help()
 		}
-		// TODO(synful)
+
+		u, err := user.Current()
+		if err != nil {
+			log.Error.Printf("could not get current user: %v\n", err)
+			os.Exit(1)
+		}
+		// TODO(synful): temporary to suppress compiler errors
+		_ = u
 	}
 	cmdHandin.Run = f
 	addAllGlobalFlagsTo(cmdHandin.Flags())
