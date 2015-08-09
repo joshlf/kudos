@@ -13,3 +13,7 @@ func (e ErrList) Error() string {
 {{end}}`)).Execute(b, e)
 	return b.String()
 }
+
+func (e *Errlist) Add(err error) {
+	*e = append(*e, err)
+}
