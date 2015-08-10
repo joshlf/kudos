@@ -69,5 +69,5 @@ func ParseCourse(r io.Reader) (*purple_unicorn.Course, error) {
 	if len(errs) > 0 {
 		return nil, errs
 	}
-	return &course, nil
+	return &course, course.Validate()
 }

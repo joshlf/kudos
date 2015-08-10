@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+//TODO: This is only used for testing, we should find a way to factor it out
+func NewCourse(code Code, name string, description string, taGroup *Group,
+	tas []User, studentGroup *Group, handinMethod *string) Course {
+	return Course{code, name, description, taGroup, tas, studentGroup, handinMethod}
+}
+
 type Course struct {
 	code         Code
 	name         string
