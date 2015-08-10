@@ -40,6 +40,41 @@ var assignmentErrTests = []assignmentErrTest{
 	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
 	[{"due":"Jan 2, 2006 at 3:04pm (MST)","problems":["b"]}]}`,
 		"parse: handin specifies nonexistent problem: b"},
+	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
+	[{"due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
+	{"due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]}]}`,
+		"parse: multiple handins defined; each must have a handin code"},
+	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
+	[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
+	{"due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]}]}`,
+		"parse: multiple handins defined; each must have a handin code"},
+	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
+	[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
+	{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]}]}`,
+		"parse: duplicate handin code: a"},
+	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
+	[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
+	{"code":"b","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]}]}`,
+		"parse: handin b includes problem a, which was already included by handin a"},
+	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
+	[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
+	{"code":"b","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["b"]}]}`,
+		"parse: handin b specifies nonexistent problem: b"},
+	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
+	[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
+	{"code":"b","due":"Jan 2, 2006 at 3:04pm (MST)","problems":[]}]}`,
+		"parse: handin b must specify at least one problem"},
+	{`{"code":"a","problems":[{"code":"a","points":1},{"code":"a","points":1}]
+	,"handins":[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
+	{"code":"b","due":"Jan 2, 2006 at 3:04pm (MST)","problems":[]}]}`,
+		"parse: duplicate problem code: a"},
+	{`{"code":"a","problems":[{"code":"a","points":1,"subproblems":[{"code":"a"}]},
+	{"code":"b","points":1}]
+	,"handins":[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
+	{"code":"b","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["b"]}]}`,
+		"parse: problem a must have points"},
+	// TODO(synful): we'd like to complain about duplicate problem codes first,
+	// but currently the parsing architecture prevents it in the above case
 }
 
 func TestParseAssignmentError(t *testing.T) {
