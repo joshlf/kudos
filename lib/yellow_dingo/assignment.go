@@ -3,10 +3,11 @@ package yellow_dingo
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/synful/kudos/lib/purple_unicorn"
 	"io"
 	"os"
 	"time"
+
+	"github.com/synful/kudos/lib/purple_unicorn"
 )
 
 type handin struct {
