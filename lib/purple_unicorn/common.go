@@ -24,15 +24,15 @@ type Validator interface {
 
 type Code string
 
-var re = regexp.MustCompile("[a-zA-Z][a-zA-Z0-9_]+")
+var re = regexp.MustCompile("[a-zA-Z][a-zA-Z0-9_]*")
 
 // Validate implements the Validator Validate method.
 func (c Code) Validate() error {
 	if len(c) == 0 {
-		return fmt.Errorf("code must be nonempty")
+		return fmt.Errorf("must be nonempty")
 	}
 	if !re.MatchString(string(c)) {
-		return fmt.Errorf("string contains illegal characters: must be alphanumeric and start with an alphabetic character")
+		return fmt.Errorf("contains illegal characters; must be alphanumeric and start with an alphabetic character")
 	}
 	return nil
 }
