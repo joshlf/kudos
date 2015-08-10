@@ -14,6 +14,6 @@ func (e ErrList) Error() string {
 	return b.String()
 }
 
-func (e *Errlist) Add(err error) {
+func (e *ErrList) Add(err error) {
 	*e = append(*e, err)
 }
