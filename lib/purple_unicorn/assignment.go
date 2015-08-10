@@ -64,7 +64,7 @@ func (p Problem) subproblems() []problemInterface {
 }
 
 type Assignment struct {
-	code Code
+	code *Code
 	name string
 
 	// Only handins with codes
@@ -76,12 +76,6 @@ type Assignment struct {
 	problems []Problem
 	// Contains all problems and subproblems
 	problemsByCode map[Code]Problem
-
-	// Able to store duplicate codes
-	// (since problemsByCode can't)
-	// so that we can catch errors
-	// during validation
-	allProblemCodes []Code
 }
 
 func NewAssignment() *Assignment {
@@ -92,14 +86,14 @@ func NewAssignment() *Assignment {
 }
 
 func (a *Assignment) SetCodeNoValidate(c Code) {
-	a.code = c
+	a.code = &c
 }
 
 func (a *Assignment) SetCode(c Code) error {
 	if err := c.Validate(); err != nil {
 		return err
 	}
-	a.code = c
+	a.code = &c
 	return nil
 }
 
@@ -109,7 +103,7 @@ func (a *Assignment) MustSetCode(c Code) {
 	}
 }
 
-func (a *Assignment) Code() Code { return a.code }
+func (a *Assignment) Code() Code { return *a.code }
 
 func (a *Assignment) SetName(name string) { a.name = name }
 func (a *Assignment) Name() string        { return a.name }
@@ -129,10 +123,8 @@ func (a *Assignment) EffectiveName() string {
 func (a *Assignment) SetProblemsNoValidate(p []Problem) {
 	a.problems = copyProblemsTree(p)
 	a.problemsByCode = make(map[Code]Problem)
-	a.allProblemCodes = nil
 	f := func(p Problem) {
 		a.problemsByCode[p.Code] = p
-		a.allProblemCodes = append(a.allProblemCodes, p.Code)
 	}
 	mapProblemsTree(a.problems, f)
 }
@@ -140,12 +132,10 @@ func (a *Assignment) SetProblemsNoValidate(p []Problem) {
 func (a *Assignment) SetProblems(p []Problem) error {
 	problems := a.problems
 	problemsByCode := a.problemsByCode
-	allProblemCodes := a.allProblemCodes
 	a.SetProblemsNoValidate(p)
 	if err := a.Validate(); err != nil {
 		a.problems = problems
 		a.problemsByCode = problemsByCode
-		a.allProblemCodes = allProblemCodes
 		return err
 	}
 	return nil
@@ -246,14 +236,14 @@ func copyHandins(h []Handin) []Handin {
 // modifications to either will not affect the
 // other.
 func (a *Assignment) Copy() *Assignment {
+	code := *a.code
 	aa := &Assignment{
-		code:            a.code,
-		name:            a.name,
-		handins:         copyHandins(a.handins),
-		handinsByCode:   make(map[Code]Handin),
-		problems:        copyProblemsTree(a.problems),
-		problemsByCode:  make(map[Code]Problem),
-		allProblemCodes: append([]Code(nil), a.allProblemCodes...),
+		code:           &code,
+		name:           a.name,
+		handins:        copyHandins(a.handins),
+		handinsByCode:  make(map[Code]Handin),
+		problems:       copyProblemsTree(a.problems),
+		problemsByCode: make(map[Code]Problem),
 	}
 	for k, v := range a.handinsByCode {
 		aa.handinsByCode[k] = v
@@ -267,8 +257,11 @@ func (a *Assignment) Copy() *Assignment {
 
 // Validate implements the Validator Validate method.
 func (a *Assignment) Validate() error {
+	if a.code == nil {
+		return fmt.Errorf("must have code")
+	}
 	if err := a.code.Validate(); err != nil {
-		return fmt.Errorf("bad code: %v", err)
+		return codeErrMsg(*a.code, err)
 	}
 	// validate problems first since validateHandins
 	// requires that problems have already been validated

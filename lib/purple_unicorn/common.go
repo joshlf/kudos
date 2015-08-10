@@ -3,6 +3,7 @@ package purple_unicorn
 import (
 	"fmt"
 	"regexp"
+	"time"
 )
 
 // Validator is a type which can
@@ -43,6 +44,29 @@ func (c Code) MustValidate() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// pretty-format an error message about c
+func codeErrMsg(c Code, err error) error {
+	if c == "" {
+		return fmt.Errorf("bad code: %v", err)
+	}
+	return fmt.Errorf("bad code %q: %v", c, err)
+}
+
+type date time.Time
+
+func (d *date) UnmarshalText(text []byte) error {
+	t, err := timeparse(string(text))
+	if err != nil {
+		return err
+	}
+	*d = date(t)
+	return nil
+}
+
+func timeparse(text string) (time.Time, error) {
+	return time.Parse("Jan 2, 2006 at 3:04pm (MST)", text)
 }
 
 func mustPanic(err error, fn string) {

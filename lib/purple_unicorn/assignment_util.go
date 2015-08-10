@@ -147,6 +147,9 @@ func validateHandins(handins []handinInterface, problems []problemInterface) err
 				return fmt.Errorf("bad handin code %v: %v", h.code(), err)
 			}
 		case parseable && !h.(parseableHandinInterface).hasDue():
+			if len(handins) == 1 {
+				return fmt.Errorf("handin must have due date")
+			}
 			return fmt.Errorf("handin %v must have due date", h.code())
 		}
 		handinErrorName := "handin"

@@ -1,7 +1,6 @@
-package testing
+package purple_unicorn
 
 import (
-	"github.com/synful/kudos/lib/yellow_dingo"
 	"strings"
 	"testing"
 )
@@ -12,9 +11,9 @@ type assignmentErrTest struct {
 }
 
 var assignmentErrTests = []assignmentErrTest{
-	{`{}`, "parse: bad code: must be nonempty"},
+	{`{}`, "parse: must have code"},
 	{`{"code":""}`, "parse: bad code: must be nonempty"},
-	{`{"code":"-"}`, "parse: bad code: contains illegal characters;" +
+	{`{"code":"-"}`, "parse: bad code \"-\": contains illegal characters;" +
 		" must be alphanumeric and start with an alphabetic character"},
 	{`{"code":"a"}`, "parse: must have at least one problem"},
 	{`{"code":"a","problems":[]}`, "parse: must have at least one problem"},
@@ -72,14 +71,12 @@ var assignmentErrTests = []assignmentErrTest{
 	{"code":"b","points":1}]
 	,"handins":[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
 	{"code":"b","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["b"]}]}`,
-		"parse: problem a must have points"},
-	// TODO(synful): we'd like to complain about duplicate problem codes first,
-	// but currently the parsing architecture prevents it in the above case
+		"parse: duplicate problem code: a"},
 }
 
 func TestParseAssignmentError(t *testing.T) {
 	for _, test := range assignmentErrTests {
-		_, err := yellow_dingo.ParseAssignment(strings.NewReader(test.conf))
+		_, err := ParseAssignment(strings.NewReader(test.conf))
 		if err == nil || err.Error() != test.err {
 			t.Errorf("unexpected error; want %v; got %v", test.err, err)
 		}
