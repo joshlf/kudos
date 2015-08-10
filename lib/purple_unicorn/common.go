@@ -3,7 +3,6 @@ package purple_unicorn
 import (
 	"fmt"
 	"regexp"
-	"strings"
 )
 
 // Validator is a type which can
@@ -46,14 +45,6 @@ func (c Code) MustValidate() {
 	}
 }
 
-func mustPanic(err error, fn string, args ...interface{}) {
-	percentVs := make([]string, len(args))
-	for i := range percentVs {
-		percentVs[i] = "%v"
-	}
-	fmtString := "purple_unicorn: %v(" + strings.Join(percentVs, ", ") + "): %v"
-	errorfArgs := []interface{}{fn}
-	errorfArgs = append(errorfArgs, args...)
-	errorfArgs = append(errorfArgs, err)
-	panic(fmt.Errorf(fmtString, errorfArgs...))
+func mustPanic(err error, fn string) {
+	panic(fmt.Errorf("purple_unicorn: %v: %v", fn, err))
 }
