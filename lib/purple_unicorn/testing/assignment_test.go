@@ -29,10 +29,17 @@ var assignmentErrTests = []assignmentErrTest{
 	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":[{}]}`,
 		"parse: handin must have due date"},
 	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
-		[{"due":"Jan 2, 2006 at 3:04pm (MST)"}]}`,
-		"parse: handin must have due date"},
-	// {`{"code":"a","handins":[{"due":"Jan 2, 2006 at 3:04pm (MST)"}]}`,
-	// 	"parse: handin must have due date"},
+	[{"due":"Jan 2, 2006 at 3:04pm (MST)"}]}`,
+		"parse: handin must specify at least one problem"},
+	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
+	[{"due":"Jan 2, 2006 at 3:04pm (MST)","problems":[]}]}`,
+		"parse: handin must specify at least one problem"},
+	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
+	[{"due":"Jan 2, 2006 at 3:04pm (MST)","problems":[""]}]}`,
+		"parse: handin contains bad problem code : must be nonempty"},
+	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
+	[{"due":"Jan 2, 2006 at 3:04pm (MST)","problems":["b"]}]}`,
+		"parse: handin specifies nonexistent problem: b"},
 }
 
 func TestParseAssignmentError(t *testing.T) {
