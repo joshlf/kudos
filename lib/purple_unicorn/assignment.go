@@ -21,6 +21,17 @@ type Handin struct {
 	Problems []Code
 }
 
+// Handin implements the handinInterface interface
+func (h Handin) code() Code     { return h.Code }
+func (h Handin) hasCode() bool  { return h.HasCode }
+func (h Handin) due() time.Time { return h.Due }
+
+// At the time of writing, no caller of the problems method
+// ever modifies the return value, so this deep copy isn't
+// strictly necessary. However, having it anyway means that
+// we avoid a potentially very subtle bug in the future.
+func (h Handin) problems() []Code { return append([]Code(nil), h.Problems...) }
+
 type Problem struct {
 	Code        Code
 	Name        string
@@ -38,6 +49,18 @@ func (p Problem) EffectiveName() string {
 		return p.Name
 	}
 	return string(p.Code)
+}
+
+// Problem implements the problemInterface interface
+func (p Problem) code() Code      { return p.Code }
+func (p Problem) name() string    { return p.Name }
+func (p Problem) points() float64 { return p.Points }
+func (p Problem) subproblems() []problemInterface {
+	var sp []problemInterface
+	for _, pp := range p.Subproblems {
+		sp = append(sp, pp)
+	}
+	return sp
 }
 
 type Assignment struct {
@@ -247,127 +270,20 @@ func (a *Assignment) Validate() error {
 	if err := a.code.Validate(); err != nil {
 		return fmt.Errorf("bad code: %v", err)
 	}
-	// validate problems first since handins refer to them,
-	// and errors in the handins might actually derive from
-	// errors in specifying problems
-	if len(a.problemsByCode) == 0 {
-		return fmt.Errorf("must have at least one problem")
-	}
-	seenCodes := make(map[Code]bool)
-	for _, pc := range a.allProblemCodes {
-		if err := pc.Validate(); err != nil {
-			return fmt.Errorf("bad problem code %v: %v", pc, err)
-		}
-		if seenCodes[pc] {
-			return fmt.Errorf("duplicate problem code: %v")
-		}
-	}
-	// TODO(synful): validate points
-
-	if len(a.handins) == 0 {
-		return fmt.Errorf("must have at least one handin")
-	}
-	seenCodes = make(map[Code]bool)
-	type problemUsage struct {
-		// the handin that used the problem
-		handin Code
-
-		// the problem that was directly included;
-		// if this is a subproblem, it will be a
-		// parent or grandparent or higher; if this
-		// is the problem itself, this will be
-		// redundant (but must be set so we can check
-		// against it)
-		problem Code
-	}
-	seenProblems := make(map[Code]problemUsage)
-	for _, h := range a.handins {
-		switch {
-		case len(a.handins) == 1 && h.HasCode:
-			return fmt.Errorf("one handin defined; cannot have handin code")
-		case len(a.handins) > 1 && !h.HasCode:
-			return fmt.Errorf("multiple handins defined; each must have a handin code")
-		case len(a.handins) > 1:
-			if err := h.Code.Validate(); err != nil {
-				return fmt.Errorf("bad handin code %v: %v", h.Code, err)
-			}
-		}
-		handinErrorName := "handin"
-		if len(a.handins) > 1 {
-			handinErrorName += " " + string(h.Code)
-		}
-		if len(a.handins) > 1 && seenCodes[h.Code] {
-			return fmt.Errorf("duplicate handin code: %v", handinErrorName)
-		}
-		if len(h.Problems) == 0 {
-			return fmt.Errorf("%v must specify at least one problem", handinErrorName)
-		}
-		for _, pc := range h.Problems {
-			if err := pc.Validate(); err != nil {
-				return fmt.Errorf("%v contains bad problem code %v: %v", handinErrorName, pc, err)
-			}
-			if _, ok := a.problemsByCode[pc]; !ok {
-				return fmt.Errorf("%v specifies nonexistent problem: %v", handinErrorName, pc)
-			}
-			pu, ok := seenProblems[pc]
-			if ok {
-				if pu.problem == pc {
-					return fmt.Errorf("%v includes problem %v, which was already included by handin %v", handinErrorName, pc, pu.handin)
-				}
-				return fmt.Errorf("%v includes problem %v, which was already included by handin %v as a subproblem of %v", handinErrorName, pc, pu.handin, pu.problem)
-			}
-			// rename so we aren't shadowed
-			// by the argument to validate
-			topLevelPC := pc
-			var validate func(Code) error
-			validate = func(pc Code) error {
-				seenProblems[pc] = problemUsage{h.Code, topLevelPC}
-				subproblems := a.problemsByCode[pc].Subproblems
-				for _, sp := range subproblems {
-					pu, ok := seenProblems[sp.Code]
-					if ok {
-						if pu.problem == sp.Code {
-							return fmt.Errorf("%v includes problem %v via %v, which was already included by handin %v", handinErrorName, sp.Code, topLevelPC, pu.handin)
-						}
-						// If pu.problem != spc, that means that one of spc's
-						// ancestors was included by another handin. However,
-						// since we had to traverse down the tree to get here,
-						// we should have already caught that.
-						panic("internal error")
-					}
-					if err := validate(sp.Code); err != nil {
-						return err
-					}
-				}
-				return nil
-			}
-			err := validate(topLevelPC)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	// Traverse the problem tree (as opposed to using
-	// a.problemsByCode) so that we encounter errors
-	// in order
-	var validate func(Code) error
-	validate = func(pc Code) error {
-		if _, ok := seenProblems[pc]; !ok {
-			return fmt.Errorf("problem %v not in any handins", pc)
-		}
-		for _, sp := range a.problemsByCode[pc].Subproblems {
-			if err := validate(sp.Code); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
+	// validate problems first since validateHandins
+	// requires that problems have already been validated
+	var problems []problemInterface
 	for _, p := range a.problems {
-		if err := validate(p.Code); err != nil {
-			return err
-		}
+		problems = append(problems, p)
 	}
-	return nil
+	if err := validateProblemTree(problems); err != nil {
+		return err
+	}
+	var handins []handinInterface
+	for _, h := range a.handins {
+		handins = append(handins, h)
+	}
+	return validateHandins(handins, problems)
 }
 
 // MustValidate implements the Validator MustValidate method.
