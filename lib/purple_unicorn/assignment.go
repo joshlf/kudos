@@ -250,6 +250,9 @@ func (a *Assignment) Validate() error {
 	// validate problems first since handins refer to them,
 	// and errors in the handins might actually derive from
 	// errors in specifying problems
+	if len(a.problemsByCode) == 0 {
+		return fmt.Errorf("must have at least one problem")
+	}
 	seenCodes := make(map[Code]bool)
 	for _, pc := range a.allProblemCodes {
 		if err := pc.Validate(); err != nil {
@@ -292,6 +295,9 @@ func (a *Assignment) Validate() error {
 			}
 			if seenCodes[h.Code] {
 				return fmt.Errorf("duplicate handin code: %v", h.Code)
+			}
+			if len(h.Problems) == 0 {
+				return fmt.Errorf("handin %v must specify at least one problem", h.Code)
 			}
 			for _, pc := range h.Problems {
 				if err := pc.Validate(); err != nil {

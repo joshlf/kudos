@@ -11,9 +11,9 @@ import (
 )
 
 type handin struct {
-	Code     *string    `json:"code"`
-	Due      *time.Time `json:"due"`
-	Problems []string   `json:"problems"`
+	Code     *string  `json:"code"`
+	Due      *date    `json:"due"`
+	Problems []string `json:"problems"`
 }
 
 type problem struct {
@@ -73,6 +73,7 @@ func parseAssignment(r io.Reader) (*purple_unicorn.Assignment, error) {
 			return nil, fmt.Errorf("handin %v must have due date", *hh.Code)
 		}
 		var hhh purple_unicorn.Handin
+		hhh.Due = time.Time(*hh.Due)
 		if hh.Code != nil {
 			hhh.Code = purple_unicorn.Code(*hh.Code)
 			hhh.HasCode = true
@@ -87,10 +88,13 @@ func parseAssignment(r io.Reader) (*purple_unicorn.Assignment, error) {
 	var convertProblems func(p []problem) ([]purple_unicorn.Problem, error)
 	convertProblems = func(p []problem) ([]purple_unicorn.Problem, error) {
 		var ret []purple_unicorn.Problem
-		for _, pp := range asgn.Problems {
+		for _, pp := range p {
 			switch {
 			case pp.Code == nil:
 				return nil, fmt.Errorf("all problems must have codes")
+			case purple_unicorn.Code(*pp.Code).Validate() != nil:
+				err := purple_unicorn.Code(*pp.Code).Validate()
+				return nil, fmt.Errorf("bad problem code %v: %v", *pp.Code, err)
 			case pp.Points == nil:
 				return nil, fmt.Errorf("problem %v must have points", *pp.Code)
 			}
