@@ -29,11 +29,31 @@ type Assignment struct {
 
 	// Only contains top-level problems
 	problems []Problem
-
 	// Contains all problems and subproblems
 	problemsByCode map[Code]Problem
+
+	// Able to store duplicate codes
+	// (since problemsByCode can't)
+	// so that we can catch errors
+	// during validation
+	allProblemCodes []Code
 }
 
+func (a *Assignment) SetCode(c Code) error {
+	if err := c.Validate(); err != nil {
+		return err
+	}
+	a.code = c
+	return nil
+}
+
+func (a *Assignment) MustSetCode(c Code) {
+	if err := a.SetCode(c); err != nil {
+		mustPanic(err, "Assignment.SetCode", c)
+	}
+}
+
+// Validate implements the Validator Validate method.
 func (a *Assignment) Validate() error {
 	if err := a.code.Validate(); err != nil {
 		return fmt.Errorf("bad code: %v", err)
@@ -41,6 +61,16 @@ func (a *Assignment) Validate() error {
 	// validate problems first since handins refer to them,
 	// and errors in the handins might actually derive from
 	// errors in specifying problems
+	seenCodes := make(map[Code]bool)
+	for _, pc := range a.allProblemCodes {
+		if err := pc.Validate(); err != nil {
+			return fmt.Errorf("bad problem code %v: %v", pc, err)
+		}
+		if seenCodes[pc] {
+			return fmt.Errorf("duplicate problem code: %v")
+		}
+	}
+	// TODO(synful): validate points
 
 	switch len(a.handins) {
 	case 0:
@@ -143,8 +173,9 @@ func (a *Assignment) Validate() error {
 	return nil
 }
 
+// MustValidate implements the Validator MustValidate method.
 func (a *Assignment) MustValidate() {
 	if err := a.Validate(); err != nil {
-		panic(err)
+		mustPanic(err, "Assignment.Validate")
 	}
 }
