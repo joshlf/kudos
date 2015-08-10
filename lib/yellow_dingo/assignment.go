@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/synful/kudos/lib/purple_unicorn"
+	"io"
 	"os"
 	"time"
 )
@@ -28,16 +29,32 @@ type assignment struct {
 	Problems []problem `json:"problems"`
 }
 
-func ParseAssignment(conf string) (*purple_unicorn.Assignment, error) {
-	f, err := os.Open(conf)
+func ParseAssignmentFile(path string) (*purple_unicorn.Assignment, error) {
+	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("parse %v: %v", err)
+		return nil, fmt.Errorf("parse %v: %v", path, err)
 	}
-	d := json.NewDecoder(f)
-	var asgn assignment
-	err = d.Decode(&asgn)
+	a, err := parseAssignment(f)
 	if err != nil {
-		return nil, fmt.Errorf("parse %v: %v", err)
+		return nil, fmt.Errorf("parse %v: %v", path, err)
+	}
+	return a, nil
+}
+
+func ParseAssignment(r io.Reader) (*purple_unicorn.Assignment, error) {
+	a, err := parseAssignment(r)
+	if err != nil {
+		return nil, fmt.Errorf("parse: %v", err)
+	}
+	return a, nil
+}
+
+func parseAssignment(r io.Reader) (*purple_unicorn.Assignment, error) {
+	d := json.NewDecoder(r)
+	var asgn assignment
+	err := d.Decode(&asgn)
+	if err != nil {
+		return nil, err
 	}
 	a := purple_unicorn.NewAssignment()
 	if asgn.Code != nil {
@@ -50,9 +67,9 @@ func ParseAssignment(conf string) (*purple_unicorn.Assignment, error) {
 	for _, hh := range asgn.Handins {
 		if hh.Due == nil {
 			if hh.Code == nil {
-				return nil, fmt.Errorf("parse %v: handin must have due date", conf)
+				return nil, fmt.Errorf("handin must have due date")
 			}
-			return nil, fmt.Errorf("parse %v: handin %v must have due date", conf, *hh.Code)
+			return nil, fmt.Errorf("handin %v must have due date", *hh.Code)
 		}
 		var hhh purple_unicorn.Handin
 		if hh.Code != nil {
@@ -72,9 +89,9 @@ func ParseAssignment(conf string) (*purple_unicorn.Assignment, error) {
 		for _, pp := range asgn.Problems {
 			switch {
 			case pp.Code == nil:
-				return nil, fmt.Errorf("parse %v: all problems must have codes", conf)
+				return nil, fmt.Errorf("all problems must have codes")
 			case pp.Points == nil:
-				return nil, fmt.Errorf("parse %v: problem %v must have points", conf, *pp.Code)
+				return nil, fmt.Errorf("problem %v must have points", *pp.Code)
 			}
 			var ppp purple_unicorn.Problem
 			ppp.Code = purple_unicorn.Code(*pp.Code)
@@ -93,11 +110,11 @@ func ParseAssignment(conf string) (*purple_unicorn.Assignment, error) {
 	}
 	p, err := convertProblems(asgn.Problems)
 	if err != nil {
-		return nil, fmt.Errorf("parse %v: %v", conf, err)
+		return nil, err
 	}
 	a.SetProblemsNoValidate(p)
 	if err := a.Validate(); err != nil {
-		return nil, fmt.Errorf("parse %v: %v", conf, err)
+		return nil, err
 	}
 	return a, nil
 }

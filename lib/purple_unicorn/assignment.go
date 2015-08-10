@@ -61,6 +61,13 @@ type Assignment struct {
 	allProblemCodes []Code
 }
 
+func NewAssignment() *Assignment {
+	return &Assignment{
+		handinsByCode:  make(map[Code]Handin),
+		problemsByCode: make(map[Code]Problem),
+	}
+}
+
 func (a *Assignment) SetCodeNoValidate(c Code) {
 	a.code = c
 }
@@ -185,13 +192,7 @@ func (a *Assignment) MustSetHandins(h []Handin) {
 	}
 }
 
-func (a *Assignment) Handins() []Handin {
-	h := append([]Handin(nil), a.handins...)
-	for i := range h {
-		h[i] = copyHandin(h[i])
-	}
-	return h
-}
+func (a *Assignment) Handins() []Handin { return copyHandins(a.handins) }
 
 func (a *Assignment) HandinByCode(c Code) (h Handin, ok bool) {
 	h, ok = a.handinsByCode[c]
@@ -206,6 +207,39 @@ func (a *Assignment) HandinByCode(c Code) (h Handin, ok bool) {
 func copyHandin(h Handin) Handin {
 	h.Problems = append([]Code(nil), h.Problems...)
 	return h
+}
+
+func copyHandins(h []Handin) []Handin {
+	h = append([]Handin(nil), h...)
+	for i := range h {
+		h[i] = copyHandin(h[i])
+	}
+	return h
+}
+
+// Copy deep copies a, returning an identical
+// but distinct Assignment which shares no
+// underlying resources with the original;
+// modifications to either will not affect the
+// other.
+func (a *Assignment) Copy() *Assignment {
+	aa := &Assignment{
+		code:            a.code,
+		name:            a.name,
+		handins:         copyHandins(a.handins),
+		handinsByCode:   make(map[Code]Handin),
+		problems:        copyProblemsTree(a.problems),
+		problemsByCode:  make(map[Code]Problem),
+		allProblemCodes: append([]Code(nil), a.allProblemCodes...),
+	}
+	for k, v := range a.handinsByCode {
+		aa.handinsByCode[k] = v
+	}
+	for k, v := range a.problemsByCode {
+		v.Subproblems = copyProblemsTree(v.Subproblems)
+		aa.problemsByCode[k] = v
+	}
+	return aa
 }
 
 // Validate implements the Validator Validate method.
