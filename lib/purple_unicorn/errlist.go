@@ -8,9 +8,9 @@ import (
 type ErrList []error
 
 func (e ErrList) Error() string {
-	b := bytes.NewBuffer([]byte{})
+	var b bytes.Buffer
 	template.Must(template.New("matcher").Parse(`{{range .}}{{.Error}}
-{{end}}`)).Execute(b, e)
+{{end}}`)).Execute(&b, e)
 	return b.String()
 }
 
