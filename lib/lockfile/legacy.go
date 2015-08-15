@@ -118,6 +118,11 @@ func getNonce() ([legacyRandBytes]byte, error) {
 	legacyNoncelock.RUnlock()
 	legacyNoncelock.Lock()
 	defer legacyNoncelock.Unlock()
+	// It might have changed in between
+	// releasing and re-acquiring the lock.
+	if legacyHaveNonce {
+		return legacyNonce, nil
+	}
 	_, err := io.ReadFull(rand.Reader, legacyNonce[:])
 	return legacyNonce, err
 }
