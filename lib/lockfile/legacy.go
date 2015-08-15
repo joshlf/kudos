@@ -137,20 +137,6 @@ func lockname() (string, error) {
 	return string(encoded[:]), nil
 }
 
-// LegacyLock is a handle to a file-based lock, and
-// implements an algorithm which is safe to use on
-// NFS versions prior to 3 and Linux kernel versions
-// prior to 2.6. Like Lock, a LegacyLock requires a
-// directory in which to operate, which must exist
-// ahead of time, and must be empty.
-//
-// A process can use multiple LegacyLocks simultaneously,
-// but they will behave completely independently, and
-// only one can be locked at a time. LegacyLocks are safe
-// for concurrent access. The zero value of LegacyLock is
-// not valid, and any methods called on a zero value
-// LegacyLock will panic. To acquire a valid LegacyLock,
-// use NewLegacyLock.
 type legacyLock struct {
 	dir      string
 	lockfile string
@@ -160,15 +146,14 @@ type legacyLock struct {
 	m        sync.Mutex
 }
 
-// NewLegacyLock is like NewLock, except that the Lock
-// it returns implements an algorithm which is safe for
+// NewLegacy is like New, except that the Lock it
+// returns implements an algorithm which is safe for
 // use on NFS versions prior to 3 and Linux kernel
 // versions prior to 2.6.
 //
-// Locks returned by NewLock and NewLegacyLock are
-// incompatible; using them together will result in
-// undefined behavior.
-func NewLegacyLock(dir string) (Lock, error) {
+// Locks returned by New and NewLegacy are incompatible;
+// using them together will result in undefined behavior.
+func NewLegacy(dir string) (Lock, error) {
 	if !filepath.IsAbs(dir) {
 		return nil, ErrNeedAbsPath
 	}

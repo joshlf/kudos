@@ -4,12 +4,14 @@
 // file system.
 //
 // This package provides two lock implementations -
-// Lock, and LegacyLock. Most users will want Lock.
-// However, the algorithm used by Lock is incorrect
-// if used on NFS pre-version 3, or if any of the
-// machines attempting to acquire the lock are running
-// a Linux kernel pre-2.6. If either of these is
-// the case, LegacyLock should be used.
+// a default implementation (New), and a legacy
+// implementation (NewLegacy). Most users will want
+// the default implementation. However, the algorithm
+// used is incorrect if used on NFS pre-version 3, or
+// if any of the machines attempting to acquire the
+// lock are running a Linux kernel pre-2.6. If either
+// of these is the case, legacy implementation should
+// be used.
 package lockfile
 
 import (
@@ -26,12 +28,12 @@ const (
 
 var (
 	// ErrCollision is returned if the randomly generated
-	// handle-specific lockfile name used in the LegacyLock
+	// handle-specific lockfile name used in the legacy
 	// algorithm collides with that of another lock handle.
 	// It is very likely that if this error is encountered,
 	// it indicates an issue with the cryptographic randomness
 	// available to this process. ErrCollision can only be
-	// returned from LegacyLock's TryLock method.
+	// returned from the legacy implementation's TryLock method.
 	ErrCollision   = errors.New("lockfile name collision")
 	ErrNeedAbsPath = errors.New("lockfile needs absolute directory path")
 )
@@ -85,23 +87,22 @@ type lock struct {
 	m      sync.Mutex
 }
 
-// NewLock creates a new Lock with the given directory,
-// which must be an absolute path; if it is not, NewLock
-// will return ErrNeedAbsPath. NewLock only initializes
-// the lock datastructure; no filesystem operations are
-// performed until a call to TryLock.
+// New creates a new Lock with the given directory, which
+// must be an absolute path; if it is not, New will return
+// ErrNeedAbsPath. New only initializes the Lock
+// datastructure; no filesystem operations are performed
+// until a call to TryLock.
 //
-// The Lock returned by NewLock uses an algorithm that
-// is not safe for use on NFS shares running NFS versions
-// prior to 3, or if any of the processes vying for the
-// lock are running Linux kernel versions prior to 2.6.
-// If either of these conditions hold, NewLegacyLock
+// The Lock returned by New uses an algorithm that is not
+// safe for use on NFS shares running NFS versions prior
+// to 3, or if any of the machines attempting to acquire
+// the lock are running on Linux kernel versions prior to
+// 2.6. If either of these conditions hold, NewLegacy
 // should be used instead.
 //
-// Locks returned by NewLock and NewLegacyLock are
-// incompatible; using them together will result in
-// undefined behavior.
-func NewLock(dir string) (Lock, error) {
+// Locks returned by New and NewLegacy are incompatible;
+// using them together will result in undefined behavior.
+func New(dir string) (Lock, error) {
 	if !filepath.IsAbs(dir) {
 		return nil, ErrNeedAbsPath
 	}
