@@ -22,13 +22,14 @@ import (
 	and can be used for locking - try to create the
 	lockfile with O_EXCL, and it is guaranteed that only
 	one such concurrent operation will succeed - that
-	person has the lock. However, this atomicity property
-	is not guaranteed pre-NFSv3 or pre-kernel 2.6. The
-	man page describes an alternative - each process
-	attempting to acquire the lock creates a file which
-	is known ahead of time to be unique (for example, by
-	using a combination of hostname and PID - this is the
-	approach suggested by the man page). Then, each
+	person has the lock. This is the algorithm used in
+	the Lock implementation. However, this atomicity
+	property is not guaranteed pre-NFSv3 or pre-kernel
+	2.6. The man page describes an alternative - each
+	process attempting to acquire the lock creates a file
+	which is known ahead of time to be unique (for example,
+	by using a combination of hostname and PID - this is
+	the approach suggested by the man page). Then, each
 	process attempts to create a hard link to that file.
 	Only one such operation will succeed, and whoever's
 	file has a hard link to it is the one who acquires
