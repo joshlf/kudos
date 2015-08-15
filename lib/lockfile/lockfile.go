@@ -31,7 +31,7 @@ var (
 	// It is very likely that if this error is encountered,
 	// it indicates an issue with the cryptographic randomness
 	// available to this process. ErrCollision can only be
-	// returned from LegacyLock's TryLock and TryLockN methods.
+	// returned from LegacyLock's TryLock method.
 	ErrCollision   = errors.New("lockfile name collision")
 	ErrNeedAbsPath = errors.New("lockfile needs absolute directory path")
 )
@@ -42,58 +42,32 @@ var (
 //
 // A process can use multiple Locks simultaneously,
 // but they will behave completely independently,
-// and only one can be locked at a time. Locks are
-// safe for concurrent access. The zero value of
-// Lock is not valid, and any methods called on a
-// zero value Lock will panic. To acquire a valid
-// Lock, use NewLock.
-type Lock struct {
-	file   string
-	locked bool
-	init   bool
-	m      sync.Mutex
+// and only one can locked at a time. Locks are safe
+// for concurrent access.
+type Lock interface {
+	// TryLock attempts to acquire the lock.
+	// It will panic if the lock is already acquired.
+	TryLock() (ok bool, err error)
+
+	// Unlock releases the lock. It will panic
+	// if the lock is not acquired.
+	Unlock() error
 }
 
-// NewLock creates a new Lock with the given directory,
-// which must be an absolute path; if it is not, NewLock
-// will return ErrNeedAbsPath. NewLock only initializes
-// the lock datastructure; no filesystem operations are
-// performed until a call to TryLock or TryLockN.
-func NewLock(dir string) (*Lock, error) {
-	if !filepath.IsAbs(dir) {
-		return nil, ErrNeedAbsPath
-	}
-	return &Lock{
-		file: filepath.Join(dir, lockfilename),
-	}, nil
-}
-
-// TryLock is equivalent to TryLockN(1, 0).
-func (l *Lock) TryLock() (ok bool, err error) {
-	return l.TryLockN(1, 0)
-}
-
-// TryLockN attempts to acquire the lock up to
-// n times before giving up, pausing for the given
-// delay between each attempt. TryLockN will panic
-// if l is not initialized or if the lock is already
-// acquired.
-func (l *Lock) TryLockN(n int, delay time.Duration) (ok bool, err error) {
-	l.m.Lock()
-	defer l.m.Unlock()
-	if !l.init {
-		panic("lockfile: uninitialized lock")
-	}
-	if l.locked {
-		panic("lockfile: tried to lock acquired lock")
+// TryLockN will call l.Lock up to n times,
+// sleeping for the given delay in between
+// each call. Users should call TryLockN
+// rather than implementing the functionality
+// themselves, as TryLockN is able to make
+// optimizations which rely on structures
+// internal to this package.
+func TryLockN(l Lock, n int, delay time.Duration) (ok bool, err error) {
+	if ll, ok := l.(*legacyLock); ok {
+		return ll.tryLockN(n, delay)
 	}
 	for i := 0; i < n; i++ {
-		ok, err = l.tryLock()
-		if ok {
-			l.locked = true
-			return
-		}
-		if err != nil {
+		ok, err = l.TryLock()
+		if ok || err != nil {
 			return
 		}
 		// Only sleep if we have tries left
@@ -104,7 +78,47 @@ func (l *Lock) TryLockN(n int, delay time.Duration) (ok bool, err error) {
 	return false, nil
 }
 
-func (l *Lock) tryLock() (bool, error) {
+type lock struct {
+	file   string
+	locked bool
+	init   bool
+	m      sync.Mutex
+}
+
+// NewLock creates a new Lock with the given directory,
+// which must be an absolute path; if it is not, NewLock
+// will return ErrNeedAbsPath. NewLock only initializes
+// the lock datastructure; no filesystem operations are
+// performed until a call to TryLock.
+//
+// The Lock returned by NewLock uses an algorithm that
+// is not safe for use on NFS shares running NFS versions
+// prior to 3, or if any of the processes vying for the
+// lock are running Linux kernel versions prior to 2.6.
+// If either of these conditions hold, NewLegacyLock
+// should be used instead.
+//
+// Locks returned by NewLock and NewLegacyLock are
+// incompatible; using them together will result in
+// undefined behavior.
+func NewLock(dir string) (Lock, error) {
+	if !filepath.IsAbs(dir) {
+		return nil, ErrNeedAbsPath
+	}
+	return &lock{
+		file: filepath.Join(dir, lockfilename),
+	}, nil
+}
+
+func (l *lock) TryLock() (ok bool, err error) {
+	l.m.Lock()
+	defer l.m.Unlock()
+	if !l.init {
+		panic("lockfile: uninitialized lock")
+	}
+	if l.locked {
+		panic("lockfile: tried to lock acquired lock")
+	}
 	f, err := os.OpenFile(l.file, os.O_RDONLY|os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
 		if os.IsExist(err) {
@@ -116,10 +130,7 @@ func (l *Lock) tryLock() (bool, error) {
 	return true, nil
 }
 
-// Unlock releases the lock so that others can
-// acquire it. Unlock will panic if l is not
-// initialized, or if the lock is not acquired.
-func (l *Lock) Unlock() error {
+func (l *lock) Unlock() error {
 	l.m.Lock()
 	defer l.m.Unlock()
 	if !l.init {

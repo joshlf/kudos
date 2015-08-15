@@ -151,7 +151,7 @@ func lockname() (string, error) {
 // not valid, and any methods called on a zero value
 // LegacyLock will panic. To acquire a valid LegacyLock,
 // use NewLegacyLock.
-type LegacyLock struct {
+type legacyLock struct {
 	dir      string
 	lockfile string
 	linkfile string
@@ -160,13 +160,15 @@ type LegacyLock struct {
 	m        sync.Mutex
 }
 
-// NewLegacyLock creates a new LegacyLock with the given
-// directory, which must be an absolute path; if it is not,
-// NewLegacyLock will return ErrNeedAbsPath. NewLegacyLock
-// only initializes the lock datastructure; no filesystem
-// operations are performed until a call to TryLock or
-// TryLockN.
-func NewLegacyLock(dir string) (*LegacyLock, error) {
+// NewLegacyLock is like NewLock, except that the Lock
+// it returns implements an algorithm which is safe for
+// use on NFS versions prior to 3 and Linux kernel
+// versions prior to 2.6.
+//
+// Locks returned by NewLock and NewLegacyLock are
+// incompatible; using them together will result in
+// undefined behavior.
+func NewLegacyLock(dir string) (Lock, error) {
 	if !filepath.IsAbs(dir) {
 		return nil, ErrNeedAbsPath
 	}
@@ -174,7 +176,7 @@ func NewLegacyLock(dir string) (*LegacyLock, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &LegacyLock{
+	return &legacyLock{
 		dir:      dir,
 		lockfile: filepath.Join(dir, lockname),
 		linkfile: filepath.Join(dir, legacyLinkfilename),
@@ -182,17 +184,11 @@ func NewLegacyLock(dir string) (*LegacyLock, error) {
 	}, nil
 }
 
-// TryLock is equivalent to TryLockN(1, 0).
-func (l *LegacyLock) TryLock() (ok bool, err error) {
-	return l.TryLockN(1, 0)
+func (l *legacyLock) TryLock() (ok bool, err error) {
+	return l.tryLockN(1, 0)
 }
 
-// TryLockN attempts to acquire the lock up to
-// n times before giving up, pausing for the given
-// delay between each attempt. TryLockN will panic
-// if l is not initialized or if the lock is already
-// acquired.
-func (l *LegacyLock) TryLockN(n int, delay time.Duration) (ok bool, err error) {
+func (l *legacyLock) tryLockN(n int, delay time.Duration) (ok bool, err error) {
 	l.m.Lock()
 	defer l.m.Unlock()
 	if !l.init {
@@ -236,7 +232,7 @@ func (l *LegacyLock) TryLockN(n int, delay time.Duration) (ok bool, err error) {
 	return false, nil
 }
 
-func (l *LegacyLock) tryLock() (bool, error) {
+func (l *legacyLock) tryLock() (bool, error) {
 	err := os.Link(l.lockfile, l.linkfile)
 	if err != nil {
 		// The error might be spurious
@@ -264,7 +260,7 @@ func (l *LegacyLock) tryLock() (bool, error) {
 // Unlock releases the lock so that others can
 // acquire it. Unlock will panic if l is not
 // initialized, or if the lock is not acquired.
-func (l *LegacyLock) Unlock() error {
+func (l *legacyLock) Unlock() error {
 	l.m.Lock()
 	defer l.m.Unlock()
 	if !l.init {
