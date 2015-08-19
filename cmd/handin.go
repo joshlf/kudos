@@ -15,7 +15,7 @@ var cmdHandin = &cobra.Command{
 	// way that is consistent with Cobra's
 	// output.
 	Use:   "handin [assignment] [handin]",
-	Short: "hand in an assignment",
+	Short: "Hand in an assignment",
 }
 
 func init() {

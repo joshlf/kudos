@@ -13,7 +13,7 @@ import (
 
 var cmdDev = &cobra.Command{
 	Use:   "dev",
-	Short: "print information useful to development of kudos",
+	Short: "Print information useful to development of kudos",
 	// TODO(synful): long description
 }
 

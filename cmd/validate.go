@@ -10,7 +10,7 @@ import (
 
 var cmdValidate = &cobra.Command{
 	Use:   "validate",
-	Short: "validate the configuration",
+	Short: "Validate the configuration",
 	Long: `Perform all of the steps necessary to determine kudos' configuration, 
 reporting any errors encountered. This includes reading environment variables,
 command line flags, and configuration files. Validate will check not only the 

@@ -9,8 +9,8 @@ import (
 
 var cmdVersion = &cobra.Command{
 	Use:   "version",
-	Short: "print the version number of kudos",
-	Long:  "print the version number of kudos",
+	Short: "Print the version number of kudos",
+	Long:  "Print the version number of kudos",
 }
 
 func init() {

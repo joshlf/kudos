@@ -10,7 +10,7 @@ import (
 
 var cmdInit = &cobra.Command{
 	Use:   "init",
-	Short: "initialize a course's kudos installation",
+	Short: "Initialize a course's kudos installation",
 }
 
 func init() {
