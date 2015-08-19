@@ -11,3 +11,7 @@ func DebugDo(f func()) {
 		f()
 	}
 }
+
+// Version is set by linking from the build script
+
+var Version string
