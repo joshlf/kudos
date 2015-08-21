@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"testing"
@@ -86,6 +87,26 @@ func expectSuccess(t *testing.T, f func()) {
 	TESTS
 */
 
+func TestSrcDir(t *testing.T) {
+	d, ok := SrcDir()
+	if !ok {
+		t.Fatalf("SrcDir returned false")
+	}
+	if filepath.Base(d) != "testutil" {
+		t.Fatalf("SrcDir returned wrong directory: %v", d)
+	}
+
+	// Since the testing code and the code itself are all
+	// in the same package, the first test isn't very
+	// likely to fail even if the code is wrong. Thus, verify
+	// by calling through another package.
+	v := reflect.ValueOf(SrcDir)
+	ret := v.Call(nil)
+	if !ret[1].Bool() || filepath.Base(ret[0].String()) != "runtime" {
+		t.Fatalf("SrcDir returned wrong results: %v, %v", ret[0].Interface(), ret[1].Interface())
+	}
+}
+
 func TestMust(t *testing.T) {
 	expectSuccess(t, func() { mustImpl(mock, nil) })
 	f := func() { mustImpl(mock, errors.New("foo")) }
@@ -124,5 +145,4 @@ func TestMustTempDir(t *testing.T) {
 	re := "^testutil_test.go:[0-9]+: mkdir " + nonexistant +
 		".*: no such file or directory$"
 	expectFatal(t, re, func() { mustTempDir(mock, nonexistant, "") })
-
 }

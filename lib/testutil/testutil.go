@@ -12,6 +12,24 @@ type testingT interface {
 	Fatalf(format string, args ...interface{})
 }
 
+// SrcDir attempts to figure out what source
+// file it is called from, and returns the
+// parent directory of that file. This can
+// be useful for tests which have local test
+// data, since commands such as
+//  go test ./...
+// can make it so that the current working
+// directory is not necessarily the same as
+// the source directory.
+func SrcDir() (dir string, ok bool) {
+	var f string
+	_, f, _, ok = runtime.Caller(1)
+	if !ok {
+		return
+	}
+	return filepath.Dir(f), true
+}
+
 // MustTempFile attempts to create a temp file,
 // and logs the error to t.Fatalf if it fails.
 // The arguments dir and prefix behave as
