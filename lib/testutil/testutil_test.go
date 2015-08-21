@@ -12,11 +12,6 @@ import (
 
 /*
 	UTILITY CODE
-
-	If you add or remove lines, most of the tests
-	will fail because the line numbers won't match;
-	make sure to re-run the tests and update the
-	line numbers after any modifications.
 */
 
 // return the "file:line" of the caller's nth ancestor
@@ -42,31 +37,13 @@ func (m mockT) Fatalf(format string, args ...interface{}) {
 	panic(mockError(fmt.Sprintf(format, args...)))
 }
 
+// It doesn't matter what value
+// of mockT you use; use this
 var mock mockT
 
-func expectFatal(t *testing.T, str string, f func()) {
-	// Calculate prefix ahead of time because if there's
-	// a panic, the defered function will get called from
-	// the call site of the panic, and we can't predict
-	// what that stack will look like.
-	prefix := fileLinePrefix(1)
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Errorf("%v: function failed to call Fatalf", prefix)
-		}
-		me, ok := r.(mockError)
-		if !ok {
-			panic(r)
-		}
-		if string(me) != str {
-			t.Errorf("%v: unexpected call to Fatalf: want %v; got %v", prefix, str, me)
-		}
-	}()
-	f()
-}
+func expectFatal(t *testing.T, regex string, f func()) {
+	re := regexp.MustCompile(regex)
 
-func expectFatalRegex(t *testing.T, re *regexp.Regexp, f func()) {
 	// Calculate prefix ahead of time because if there's
 	// a panic, the defered function will get called from
 	// the call site of the panic, and we can't predict
@@ -112,13 +89,13 @@ func expectSuccess(t *testing.T, f func()) {
 func TestMust(t *testing.T) {
 	expectSuccess(t, func() { mustImpl(mock, nil) })
 	f := func() { mustImpl(mock, errors.New("foo")) }
-	expectFatal(t, "testutil_test.go:66: foo", f)
+	expectFatal(t, "testutil_test.go:[0-9]+: foo", f)
 }
 
 func TestMustPrefix(t *testing.T) {
 	expectSuccess(t, func() { mustPrefix(mock, "", nil) })
 	f := func() { mustPrefix(mock, "foo", errors.New("bar")) }
-	expectFatal(t, "testutil_test.go:66: foo: bar", f)
+	expectFatal(t, "testutil_test.go:[0-9]+: foo: bar", f)
 }
 
 func TestMustTempFile(t *testing.T) {
@@ -130,9 +107,9 @@ func TestMustTempFile(t *testing.T) {
 	dir := MustTempDir(t, "", "")
 	defer os.RemoveAll(dir)
 	nonexistant := filepath.Join(dir, "foo")
-	re := regexp.MustCompile("^testutil_test.go:88: open " + nonexistant +
-		".*: no such file or directory$")
-	expectFatalRegex(t, re, func() { mustTempFile(mock, nonexistant, "") })
+	re := "^testutil_test.go:[0-9]+: open " + nonexistant +
+		".*: no such file or directory$"
+	expectFatal(t, re, func() { mustTempFile(mock, nonexistant, "") })
 }
 
 func TestMustTempDir(t *testing.T) {
@@ -144,8 +121,8 @@ func TestMustTempDir(t *testing.T) {
 	dir := MustTempDir(t, "", "")
 	defer os.RemoveAll(dir)
 	nonexistant := filepath.Join(dir, "foo")
-	re := regexp.MustCompile("^testutil_test.go:88: mkdir " + nonexistant +
-		".*: no such file or directory$")
-	expectFatalRegex(t, re, func() { mustTempDir(mock, nonexistant, "") })
+	re := "^testutil_test.go:[0-9]+: mkdir " + nonexistant +
+		".*: no such file or directory$"
+	expectFatal(t, re, func() { mustTempDir(mock, nonexistant, "") })
 
 }
