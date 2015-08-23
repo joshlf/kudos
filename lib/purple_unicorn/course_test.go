@@ -1,12 +1,9 @@
-package testing
+package purple_unicorn
 
 import (
 	"bytes"
 	"reflect"
 	"testing"
-
-	pu "github.com/synful/kudos/lib/purple_unicorn"
-	"github.com/synful/kudos/lib/yellow_dingo"
 )
 
 func TestCorrectCourseFile(t *testing.T) {
@@ -20,15 +17,15 @@ func TestCorrectCourseFile(t *testing.T) {
 	"handin_method" : "facl"
 }`
 	r := bytes.NewBufferString(basic1)
-	p, err := yellow_dingo.ParseCourse(r)
+	p, err := ParseCourse(r)
 	if err != nil {
 		t.Log(err)
 		t.Fail()
 	} else {
-		grp1 := pu.Group("staff")
-		grp2 := pu.Group("sys")
+		grp1 := Group("staff")
+		grp2 := Group("sys")
 		facl := "facl"
-		expect := pu.NewCourse("cs000", "test CS course", "a very simple cs course", &grp1, []pu.User{pu.User("jliebowf"), pu.User("ezr")}, &grp2, &facl)
+		expect := NewCourse("cs000", "test CS course", "a very simple cs course", &grp1, []User{User("jliebowf"), User("ezr")}, &grp2, &facl)
 		if !reflect.DeepEqual(*p, expect) {
 			t.Fail()
 			t.Logf("Expected \n%v\n Got \n%v\n", *p, expect)
