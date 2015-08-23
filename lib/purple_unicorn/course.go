@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+//This file contains functionality for parsing and validating a course config
+//file. These files contain course-global information about students, handin
+//method, and course information.
+
+//Struct representing on-disk state. Pointers are set to nil by the json
+//package if the field is not specified.
 type course struct {
 	Code         *string  `json:"code"`
 	Name         *string  `json:"name"`
@@ -94,6 +100,8 @@ var handinMethods = map[string]bool{
 
 type Group string
 
+//Currently we traverse etc/group to verify if a group exists on the system.
+//TODO: use a more portable method to accomplish this
 func (g Group) Validate() error {
 	group := string(g)
 	if f, err := os.Open("/etc/group"); err == nil {
@@ -124,7 +132,6 @@ func (g Group) MustValidate() {
 
 type User string
 
-//TODO: we probably want to have separate Group and TA types to do a validate on
 func (u User) Validate() error {
 	//TODO nyi
 	return nil
@@ -137,6 +144,7 @@ func (u User) MustValidate() {
 	}
 }
 
+//We want to give as many error messages as possible, so we do not error out early.
 func (c *Course) Validate() error {
 	var errs ErrList
 
@@ -185,6 +193,9 @@ studentList:
 
 	return nil
 }
+
+//Standard setter boilerplate. This follows a best-effort approach to the
+//Set{NoValidate} philosophy
 
 func (c *Course) MustValidate() {
 	err := c.Validate()
