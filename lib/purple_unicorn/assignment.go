@@ -35,8 +35,51 @@ func (h Handin) problems() []Code { return append([]Code(nil), h.Problems...) }
 type Problem struct {
 	Code        Code
 	Name        string
+	HasPoints   bool
 	Points      float64
 	Subproblems []Problem
+}
+
+func (p *Problem) Validate() error {
+	var nopoints func(p *Problem) error
+	nopoints = func(pc *Problem) error {
+		if pc.HasPoints {
+			return fmt.Errorf(
+				`problem %v was assigned a point value while a parent problem %v already has points.`,
+				pc.Name, p.Name)
+		} else {
+			var errs ErrList
+			for _, sp := range pc.Subproblems {
+				if err := nopoints(&sp); err != nil {
+					errs.Add(err)
+				}
+			}
+			if len(errs) == 0 {
+				return nil
+			} else {
+				return errs
+			}
+		}
+	}
+	var errs ErrList
+	if p.HasPoints {
+		for _, sp := range p.Subproblems {
+			if err := nopoints(&sp); err != nil {
+				errs.Add(err)
+			}
+		}
+	} else {
+		for _, sp := range p.Subproblems {
+			if err := sp.Validate(); err != nil {
+				errs.Add(err)
+			}
+		}
+	}
+	if len(errs) == 0 {
+		return nil
+	} else {
+		return errs
+	}
 }
 
 // EffectiveName returns the effective name of p,

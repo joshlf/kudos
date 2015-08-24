@@ -66,6 +66,7 @@ func (p problem) toProblem() (pp Problem) {
 	pp.Code = p.code()
 	pp.Name = p.name()
 	pp.Points = p.points()
+	pp.HasPoints = p.points == nil
 	for _, ppp := range p.Subproblems {
 		pp.Subproblems = append(pp.Subproblems, ppp.toProblem())
 	}
