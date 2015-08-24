@@ -8,6 +8,84 @@ import (
 	"strings"
 )
 
+var (
+	numtyp    = reflect.TypeOf(json.Number(""))
+	booltyp   = reflect.TypeOf(true)
+	stringtyp = reflect.TypeOf("")
+	objtyp    = reflect.TypeOf(map[string]interface{}{})
+	arrtyp    = reflect.TypeOf([]interface{}{})
+)
+
+func diff(a, b interface{}, path []interface{}) []interface{} {
+	if reflect.TypeOf(a) != reflect.TypeOf(b) {
+		return path
+	}
+	typ := reflect.TypeOf(a)
+	switch typ {
+	case booltyp, numtyp, stringtyp:
+		// TODO(synful): Since we use json.Number
+		// for numbers, this amounts to string
+		// comparison for numbers. There could be
+		// multiple different representations of
+		// a given number; we should either convert
+		// to an actual number or canonicalize the
+		// string before comparing.
+		if a != b {
+			return path
+		}
+		return nil
+	case objtyp:
+		a := a.(map[string]interface{})
+		b := b.(map[string]interface{})
+		if len(a) != len(b) {
+			return path
+		}
+		for k := range a {
+			if _, ok := b[k]; !ok {
+				return path
+			}
+		}
+		var changelist [][]interface{}
+		for k := range a {
+			pathtmp := diff(a[k], b[k], append(path, k))
+			if pathtmp != nil {
+				changelist = append(changelist, pathtmp)
+			}
+		}
+		switch {
+		case len(changelist) == 0:
+			return nil
+		case len(changelist) == 1:
+			return changelist[0]
+		default:
+			return path
+		}
+	case arrtyp:
+		a := a.([]interface{})
+		b := b.([]interface{})
+		if len(a) != len(b) {
+			return path
+		}
+		var changelist [][]interface{}
+		for i := range a {
+			pathtmp := diff(a[i], b[i], append(path, i))
+			if pathtmp != nil {
+				changelist = append(changelist, pathtmp)
+			}
+		}
+		switch {
+		case len(changelist) == 0:
+			return nil
+		case len(changelist) == 1:
+			return changelist[0]
+		default:
+			return path
+		}
+	default:
+		panic("internal error: unreachable code")
+	}
+}
+
 func mapToExt(from interface{}, to reflect.Value) error {
 	totyp := to.Type()
 	fromtyp := typname(reflect.TypeOf(from))
@@ -70,7 +148,28 @@ func mapToExt(from interface{}, to reflect.Value) error {
 		}
 		to.SetString(s)
 	case reflect.Array, reflect.Slice:
-
+		f, ok := from.([]interface{})
+		if !ok {
+			return fmt.Errorf("cannot convert %v to %v", totyp, fromtyp)
+		}
+		if to.Kind() == reflect.Slice {
+			to.Set(reflect.MakeSlice(to.Type(), len(f), len(f)))
+		} else if to.Len() != len(f) {
+			// TODO(synful): This is as restrictive
+			// as can be, so we can always relax the
+			// rules later. The json package allows
+			// any length, and either doesn't fill
+			// the extra etnries in the Go array, or
+			// just throws away the extra entries in
+			// the json array.
+			return fmt.Errorf("cannot convert array of length %v to %v", len(f), fromtyp)
+		}
+		for i, v := range f {
+			err := mapToExt(v, to.Index(i))
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -107,6 +206,9 @@ func extToMap(val reflect.Value) (interface{}, error) {
 			effective := sanitizeFieldName(k.String())
 			// Can't validate this based on the type
 			// alone, so we have to validate dynamically
+			if effective == "" {
+				return nil, fmt.Errorf("invalid field name %v", k.String())
+			}
 			if other, ok := names[effective]; ok {
 				return nil, fmt.Errorf("map keys %v and %v conflict", k.String(), other)
 			}
@@ -164,6 +266,9 @@ func validateTypeHelper(typ reflect.Type, seen map[reflect.Type]bool) error {
 			exported := field.PkgPath == ""
 			if exported {
 				effective := sanitizeFieldName(field.Name)
+				if effective == "" {
+					return fmt.Errorf("invalid struct field name %v", field.Name)
+				}
 				if other, ok := m[effective]; ok {
 					return fmt.Errorf("struct fields %v and %v conflict", field.Name, other)
 				}
@@ -180,46 +285,31 @@ func validateTypeHelper(typ reflect.Type, seen map[reflect.Type]bool) error {
 }
 
 // Removes all but letters and numbers and
-// converts to lowercase
+// converts to lowercase and removes
+// leading numbers
 func sanitizeFieldName(s string) string {
 	s = strings.ToLower(s)
 	var ss string
+	var seenLetter bool
 	for _, c := range s {
 		switch {
 		case 'a' <= c && c <= 'z':
 			ss += string(c)
-		case '0' <= c && c <= '9':
+			seenLetter = true
+		case '0' <= c && c <= '9' && seenLetter:
 			ss += string(c)
 		}
 	}
 	return ss
 }
 
-// returns "overflows" or "underflows" or the empty string
-func overflows(typ reflect.Type, num json.Number) string {
-	switch typ.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Float32, reflect.Float64, reflect.String,
-		reflect.Uintptr, reflect.UnsafePointer:
-	}
+var typnames = map[reflect.Type]string{
+	numtyp:    "number",
+	booltyp:   "bool",
+	stringtyp: "string",
+	objtyp:    "object",
+	arrtyp:    "array",
 }
-
-var (
-	numtype    = reflect.TypeOf(json.Number(""))
-	booltype   = reflect.TypeOf(true)
-	stringtype = reflect.TypeOf("")
-	objtype    = reflect.TypeOf(map[string]interface{}{})
-	arrtype    = reflect.TypeOf([]interface{}{})
-
-	typnames = map[reflect.Type]string{
-		numtype:    "number",
-		booltype:   "bool",
-		stringtype: "string",
-		objtype:    "object",
-		arrtype:    "array",
-	}
-)
 
 func typname(typ reflect.Type) string {
 	name, ok := typnames[typ]
