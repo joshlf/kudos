@@ -23,6 +23,74 @@ const CategoryConfigFileName = "config.json"
 
 type Weight uint64
 
+type Category struct {
+	name     string
+	children []*Category
+	asgns    []*Assignment
+	weight   Weight
+}
+
+//Traverse enter tree of categories and their assignments
+func ValidateCategoryRecursive(c *Category) error {
+	err := c.Validate()
+	if err != nil {
+		return err
+	}
+	var errs ErrList
+	if len(c.children) > 0 {
+		for _, cat := range c.children {
+			err = ValidateCategoryRecursive(cat)
+			if err != nil {
+				errs.Add(err)
+			}
+		}
+	} else {
+		for _, asgn := range c.asgns {
+			err = asgn.Validate()
+			if err != nil {
+				errs.Add(err)
+			}
+		}
+	}
+	return errs
+}
+
+func (b *Category) Validate() error {
+	if b.children != nil && b.asgns != nil {
+		return fmt.Errorf(`Category %v has the following children that are subcatecories:
+%v
+and the following children that are assignments:
+%v
+Categories may only have one or the other`, b.name, b.children, b.asgns)
+	}
+	return nil
+}
+
+func (b *Category) Children() []*Category {
+	return b.children
+}
+
+func (b *Category) Assignments() []*Assignment {
+	return b.asgns
+}
+
+func (b *Category) Weight() Weight {
+	return b.weight
+}
+
+func (b *Category) Name() string {
+	return b.name
+}
+
+func (c *Course) MakeRootCategory() *Category {
+	return &Category{
+		name:     string(c.code),
+		children: []*Category{},
+		asgns:    []*Assignment{},
+		weight:   Weight(1),
+	}
+}
+
 //Recursively traverse directory tree, building up category structure.
 //The base case of the recursion is the root category generated from a course config along
 //with the directory to start searching for configs
@@ -96,40 +164,6 @@ start:
 	}
 
 	return errs
-}
-
-type Category struct {
-	name     string
-	children []*Category
-	asgns    []*Assignment
-	weight   Weight
-}
-
-func (b *Category) Validate() error {
-	if b.children != nil && b.asgns != nil {
-		return fmt.Errorf(`Category %v has the following children that are subcatecories:
-%v
-and the following children that are assignments:
-%v
-Categories may only have one or the other`, b.name, b.children, b.asgns)
-	}
-	return nil
-}
-
-func (b *Category) Children() []*Category {
-	return b.children
-}
-
-func (b *Category) Assignments() []*Assignment {
-	return b.asgns
-}
-
-func (b *Category) Weight() Weight {
-	return b.weight
-}
-
-func (b *Category) Name() string {
-	return b.name
 }
 
 // A similar recursive strategy can/should be used to generate a
