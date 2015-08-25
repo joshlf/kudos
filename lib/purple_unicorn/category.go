@@ -30,6 +30,20 @@ type Category struct {
 	weight   Weight
 }
 
+func (c *Category) Total() float64 {
+	total := 0.0
+	if len(c.children) == 0 {
+		for _, asgn := range c.asgns {
+			total += asgn.GetPoints()
+		}
+		return total
+	}
+	for _, c := range c.children {
+		total += float64(c.weight) * c.Total()
+	}
+	return total
+}
+
 //Traverse enter tree of categories and their assignments
 func ValidateCategoryRecursive(c *Category) error {
 	err := c.Validate()

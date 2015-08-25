@@ -40,6 +40,17 @@ type Problem struct {
 	Subproblems []Problem
 }
 
+func (p *Problem) GetPoints() float64 {
+	if p.HasPoints {
+		return p.Points
+	}
+	points := 0.0
+	for _, s := range p.Subproblems {
+		points += s.GetPoints()
+	}
+	return points
+}
+
 func (p *Problem) Validate() error {
 	var nopoints func(p *Problem) error
 	nopoints = func(pc *Problem) error {
@@ -119,6 +130,14 @@ type Assignment struct {
 	problems []Problem
 	// Contains all problems and subproblems
 	problemsByCode map[Code]Problem
+}
+
+func (a *Assignment) GetPoints() float64 {
+	points := 0.0
+	for _, p := range a.problems {
+		points += p.GetPoints()
+	}
+	return points
 }
 
 func NewAssignment() *Assignment {
