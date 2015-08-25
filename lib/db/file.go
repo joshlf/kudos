@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"sort"
@@ -36,25 +35,43 @@ type merkleTree struct {
 	children map[interface{}]merkleTree
 }
 
-func readDBFiles(current, history string) (dbState, error) {
-	cur, err := os.Open(current)
+func ingestDB(curpath, histpath string) (dbState, error) {
+	db, err := readDB(curpath, histpath)
 	if err != nil {
 		return dbState{}, err
 	}
-	hist, err := os.Open(history)
+	err = validateDBState(db)
 	if err != nil {
 		return dbState{}, err
 	}
-	return readDB(cur, hist)
+	return db, nil
 }
 
-func readDB(current, history io.Reader) (dbState, error) {
-	cur := json.NewDecoder(current)
-	hist := json.NewDecoder(history)
+// TODO(synful): add bool return value indicating
+// whether the state was written?
+func commitDB(curpath, histpath string, old dbState, new interface{}) error {
+	db, changed := getUpdatedDBState(old, new)
+	if !changed {
+		return nil
+	}
+	return writeDB(curpath, histpath, db)
+}
+
+func readDB(curpath, histpath string) (dbState, error) {
+	curfile, err := os.Open(curpath)
+	if err != nil {
+		return dbState{}, err
+	}
+	histfile, err := os.Open(histpath)
+	if err != nil {
+		return dbState{}, err
+	}
+	cur := json.NewDecoder(curfile)
+	hist := json.NewDecoder(histfile)
 	cur.UseNumber()
 	hist.UseNumber()
 	var db dbState
-	err := cur.Decode(&db.db)
+	err = cur.Decode(&db.db)
 	if err != nil {
 		return dbState{}, err
 	}
@@ -62,61 +79,53 @@ func readDB(current, history io.Reader) (dbState, error) {
 	if err != nil {
 		return dbState{}, err
 	}
-	if len(db.hist) == 0 {
-		return dbState{}, fmt.Errorf("empty database history")
-	}
-	db.mtree = calcMerkleTree(db.db)
-	if db.mtree.hash != db.hist[0].NewRootHash {
-		return dbState{}, fmt.Errorf("current state doesn't match history")
-	}
 	return db, nil
 }
 
-func writeDBFiles(current, history string, old dbState, new interface{}) error {
-	getcur := func() (io.Writer, error) {
-		f, err := os.Create(current)
-		return f, err
+func writeDB(curpath, histpath string, db dbState) error {
+	curfile, err := os.Create(curpath)
+	if err != nil {
+		return err
 	}
-	gethist := func() (io.Writer, error) {
-		f, err := os.Create(history)
-		return f, err
+	histfile, err := os.Create(histpath)
+	if err != nil {
+		return err
 	}
-	return writeDB(getcur, gethist, old, new)
+	cur := json.NewEncoder(curfile)
+	hist := json.NewEncoder(histfile)
+	err = cur.Encode(db.db)
+	if err != nil {
+		return err
+	}
+	return hist.Encode(db.hist)
 }
 
-// If old and new are identical, we don't want to clobber the
-// old database files. But opening them for writing would
-// involve truncating them (doing it otherwise is possible,
-// but then figuring out where to truncate after the fact
-// is difficult). Thus, the files should only be opened for
-// writing (and truncated) when getcur and gethist are called.
-func writeDB(getcur, gethist func() (io.Writer, error), old dbState, new interface{}) error {
+func validateDBState(db dbState) error {
+	if len(db.hist) == 0 {
+		return fmt.Errorf("empty database history")
+	}
+	db.mtree = calcMerkleTree(db.db)
+	if db.mtree.hash != db.hist[0].NewRootHash {
+		return fmt.Errorf("current state doesn't match history")
+	}
+	return nil
+}
+
+// Computes the new state, including adding
+// the diff between old.db and new to the history.
+// Returns true if there is a difference, otherwise
+// false.
+func getUpdatedDBState(old dbState, new interface{}) (dbState, bool) {
 	newmtree := calcMerkleTree(new)
 	p := merkleDiff(old.mtree, newmtree, nil)
 	if p == nil {
-		return nil
+		return old, false
 	}
 	elem := findElem(new, p)
 	change := change{p, elem, newmtree.hash}
 	newDBState := dbState{new, append(history(nil), old.hist...), newmtree}
 	newDBState.hist = append(newDBState.hist, change)
-
-	current, err := getcur()
-	if err != nil {
-		return err
-	}
-	cur := json.NewEncoder(current)
-	history, err := gethist()
-	if err != nil {
-		return err
-	}
-	hist := json.NewEncoder(history)
-
-	err = cur.Encode(newDBState.db)
-	if err != nil {
-		return err
-	}
-	return hist.Encode(newDBState.hist)
+	return newDBState, true
 }
 
 func calcMerkleTree(data interface{}) merkleTree {
