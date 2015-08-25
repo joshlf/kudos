@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/synful/kudos/lib/build"
 	"github.com/synful/kudos/lib/config"
-	"github.com/synful/kudos/lib/db/json"
 )
 
 var cmdDev = &cobra.Command{
@@ -29,7 +28,6 @@ func init() {
 
 func printConstants() {
 	consts := map[string]interface{}{
-		"lib/db/json.ProviderName":           json.ProviderName,
 		"lib/build.DebugMode":                build.DebugMode,
 		"lib/build.DevMode":                  build.DevMode,
 		"lib/build.Root":                     build.Root,
