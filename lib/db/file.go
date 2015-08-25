@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"sort"
 )
@@ -35,6 +36,18 @@ type merkleTree struct {
 	children map[interface{}]merkleTree
 }
 
+func readDBFiles(current, history string) (dbState, error) {
+	cur, err := os.Open(current)
+	if err != nil {
+		return dbState{}, err
+	}
+	hist, err := os.Open(history)
+	if err != nil {
+		return dbState{}, err
+	}
+	return readDB(cur, hist)
+}
+
 func readDB(current, history io.Reader) (dbState, error) {
 	cur := json.NewDecoder(current)
 	hist := json.NewDecoder(history)
@@ -59,13 +72,25 @@ func readDB(current, history io.Reader) (dbState, error) {
 	return db, nil
 }
 
+func writeDBFiles(current, history string, old dbState, new interface{}) error {
+	getcur := func() (io.Writer, error) {
+		f, err := os.Create(current)
+		return f, err
+	}
+	gethist := func() (io.Writer, error) {
+		f, err := os.Create(history)
+		return f, err
+	}
+	return writeDB(getcur, gethist, old, new)
+}
+
 // If old and new are identical, we don't want to clobber the
 // old database files. But opening them for writing would
 // involve truncating them (doing it otherwise is possible,
 // but then figuring out where to truncate after the fact
 // is difficult). Thus, the files should only be opened for
-// writing (and truncated) when getCur and getHist are called.
-func writeDB(getCur, getHist func() (io.Writer, error), old dbState, new interface{}) error {
+// writing (and truncated) when getcur and gethist are called.
+func writeDB(getcur, gethist func() (io.Writer, error), old dbState, new interface{}) error {
 	newmtree := calcMerkleTree(new)
 	p := merkleDiff(old.mtree, newmtree, nil)
 	if p == nil {
@@ -76,12 +101,12 @@ func writeDB(getCur, getHist func() (io.Writer, error), old dbState, new interfa
 	newDBState := dbState{new, append(history(nil), old.hist...), newmtree}
 	newDBState.hist = append(newDBState.hist, change)
 
-	current, err := getCur()
+	current, err := getcur()
 	if err != nil {
 		return err
 	}
 	cur := json.NewEncoder(current)
-	history, err := getHist()
+	history, err := gethist()
 	if err != nil {
 		return err
 	}
