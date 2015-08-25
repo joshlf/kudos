@@ -9,12 +9,18 @@ import (
 	"sort"
 )
 
+type dbFile struct {
+	DB   interface{}
+	Hist history
+}
+
 type dbState struct {
-	db    interface{}
-	hist  history
+	dbFile
 	mtree merkleTree
 }
 
+// changes are sorted in increasing
+// order of age (most recent first)
 type history []change
 
 type change struct {
@@ -35,11 +41,14 @@ type merkleTree struct {
 	children map[interface{}]merkleTree
 }
 
-func ingestDB(curpath, histpath string) (dbState, error) {
-	db, err := readDB(curpath, histpath)
+func ingestDB(path string) (dbState, error) {
+	var db dbState
+	var err error
+	db.dbFile, err = readDB(path)
 	if err != nil {
 		return dbState{}, err
 	}
+	db.mtree = calcMerkleTree(db.DB)
 	err = validateDBState(db)
 	if err != nil {
 		return dbState{}, err
@@ -47,65 +56,51 @@ func ingestDB(curpath, histpath string) (dbState, error) {
 	return db, nil
 }
 
-// TODO(synful): add bool return value indicating
-// whether the state was written?
-func commitDB(curpath, histpath string, old dbState, new interface{}) error {
+func commitDB(dbpath, tmppath string, old dbState, new interface{}) (bool, error) {
 	db, changed := getUpdatedDBState(old, new)
 	if !changed {
-		return nil
+		return false, nil
 	}
-	return writeDB(curpath, histpath, db)
+	err := writeDB(dbpath, tmppath, db.dbFile)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
-func readDB(curpath, histpath string) (dbState, error) {
-	curfile, err := os.Open(curpath)
+func readDB(path string) (dbFile, error) {
+	dbfile, err := os.Open(path)
 	if err != nil {
-		return dbState{}, err
+		return dbFile{}, err
 	}
-	histfile, err := os.Open(histpath)
+	dec := json.NewDecoder(dbfile)
+	dec.UseNumber()
+	var db dbFile
+	err = dec.Decode(&db)
 	if err != nil {
-		return dbState{}, err
-	}
-	cur := json.NewDecoder(curfile)
-	hist := json.NewDecoder(histfile)
-	cur.UseNumber()
-	hist.UseNumber()
-	var db dbState
-	err = cur.Decode(&db.db)
-	if err != nil {
-		return dbState{}, err
-	}
-	err = hist.Decode(&db.hist)
-	if err != nil {
-		return dbState{}, err
+		return dbFile{}, err
 	}
 	return db, nil
 }
 
-func writeDB(curpath, histpath string, db dbState) error {
-	curfile, err := os.Create(curpath)
+func writeDB(dbpath, tmppath string, db dbFile) error {
+	tmpfile, err := os.Create(tmppath)
 	if err != nil {
 		return err
 	}
-	histfile, err := os.Create(histpath)
+	enc := json.NewEncoder(tmpfile)
+	err = enc.Encode(db)
 	if err != nil {
 		return err
 	}
-	cur := json.NewEncoder(curfile)
-	hist := json.NewEncoder(histfile)
-	err = cur.Encode(db.db)
-	if err != nil {
-		return err
-	}
-	return hist.Encode(db.hist)
+	return os.Rename(tmppath, dbpath)
 }
 
 func validateDBState(db dbState) error {
-	if len(db.hist) == 0 {
+	if len(db.Hist) == 0 {
 		return fmt.Errorf("empty database history")
 	}
-	db.mtree = calcMerkleTree(db.db)
-	if db.mtree.hash != db.hist[0].NewRootHash {
+	if db.mtree.hash != db.Hist[0].NewRootHash {
 		return fmt.Errorf("current state doesn't match history")
 	}
 	return nil
@@ -123,8 +118,7 @@ func getUpdatedDBState(old dbState, new interface{}) (dbState, bool) {
 	}
 	elem := findElem(new, p)
 	change := change{p, elem, newmtree.hash}
-	newDBState := dbState{new, append(history(nil), old.hist...), newmtree}
-	newDBState.hist = append(newDBState.hist, change)
+	newDBState := dbState{dbFile{new, append(history{change}, old.Hist...)}, newmtree}
 	return newDBState, true
 }
 
