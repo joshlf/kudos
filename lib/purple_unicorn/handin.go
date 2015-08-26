@@ -1,5 +1,9 @@
 package purple_unicorn
 
+// This file provides functions to manage the public handin metadata file for a
+// course. This construct creates a public manifest that is readable and
+// writeable by TAs, and readable by students
+
 import (
 	"encoding/json"
 	"fmt"
@@ -7,6 +11,8 @@ import (
 	"path"
 	"reflect"
 	"time"
+
+	"github.com/synful/go-acl"
 )
 
 //name of file where where public handin specs are stored.
@@ -31,6 +37,20 @@ func (c *Course) PubFile() string {
 // This file should create the public file with ACL read/writes to the TA group
 // and acl reads to the student group
 func (c *Course) CreatePubFile() error {
+	_, err := os.Create(c.PubFile())
+	if err != nil {
+		return err
+	}
+	acl.Set(c.PubFile(), acl.ACL([]acl.Entry{acl.Entry{
+		Tag:       acl.TagGroup,
+		Qualifier: string(*c.studentGroup),
+		Perms:     4,
+	}, acl.Entry{
+		Tag:       acl.TagGroup,
+		Qualifier: string(*c.taGroup),
+		Perms:     6,
+	}}))
+
 	return nil
 }
 
