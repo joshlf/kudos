@@ -2,9 +2,18 @@ package template
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"os/exec"
 	"text/template"
+)
+
+var (
+	// Use stdout and stderr instead of
+	// os.Stdout and os.Stderr so we can
+	// mock them for testing.
+	stdout io.ReadWriter = os.Stdout
+	stderr io.ReadWriter = os.Stderr
 )
 
 // Command returns a command with the following set:
@@ -29,24 +38,20 @@ func Command(t *template.Template, cmd string, data interface{}, env []string) (
 // additionally sets the command's stdout and
 // stderr to os.Stdout and os.Stdin.
 func CommandOut(t *template.Template, cmd string, data interface{}, env []string) (*exec.Cmd, error) {
-	c := exec.Command(cmd)
-	c.Env = append(os.Environ(), env...)
-	var buf bytes.Buffer
-	err := t.Execute(&buf, data)
+	c, err := Command(t, cmd, data, env)
 	if err != nil {
 		return nil, err
 	}
-	c.Stdin = &buf
-	c.Stdout, c.Stderr = os.Stdout, os.Stderr
+	c.Stdout, c.Stderr = stdout, stderr
 	return c, nil
 }
 
 type Entry struct {
+	// The data to be passed to the template
+	Data interface{}
 	// The variables to add to the subcommand's
 	// environment.
 	Env []string
-	// The data to be passed to the template
-	Data interface{}
 }
 
 // RunAll calls Command on each entry, and executes
@@ -58,31 +63,22 @@ type Entry struct {
 // of the entries argument. If the returned error
 // is non-nil, its type will be EntryError.
 func RunAll(t *template.Template, cmd string, entries ...Entry) error {
-	cmds := make([]*exec.Cmd, len(entries))
-	for i, e := range entries {
-		var err error
-		cmds[i], err = Command(t, cmd, e.Data, e.Env)
-		if err != nil {
-			return EntryError{i, e, err}
-		}
-	}
-
-	for i, c := range cmds {
-		err := c.Run()
-		if err != nil {
-			return EntryError{i, entries[i], err}
-		}
-	}
-	return nil
+	return runAll(Command, t, cmd, entries...)
 }
 
 // RunAllOut is like RunAll, except that it calls
 // CommandOut instead of Command.
 func RunAllOut(t *template.Template, cmd string, entries ...Entry) error {
+	return runAll(CommandOut, t, cmd, entries...)
+}
+
+type cmdfunctyp func(*template.Template, string, interface{}, []string) (*exec.Cmd, error)
+
+func runAll(cmdf cmdfunctyp, t *template.Template, cmd string, entries ...Entry) error {
 	cmds := make([]*exec.Cmd, len(entries))
 	for i, e := range entries {
 		var err error
-		cmds[i], err = Command(t, cmd, e.Data, e.Env)
+		cmds[i], err = cmdf(t, cmd, e.Data, e.Env)
 		if err != nil {
 			return EntryError{i, e, err}
 		}
