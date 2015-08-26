@@ -17,9 +17,17 @@ import (
 //      b/
 //        c
 // then "foo/a" will be added as "a", and "foo/b/c"
-// will be added as "b/c".
+// will be added as "b/c". The returned template itself
+// will be that of the first file encountered. There
+// must be at least one file in the directory.
 func ParseDir(dir string) (*template.Template, error) {
-	var t *template.Template
+	return ParseDirAdd(nil, dir)
+}
+
+// ParseDirAdd is like ParseDir, except that it adds
+// the parsed templates to t instead of creating a new
+// template.
+func ParseDirAdd(t *template.Template, dir string) (*template.Template, error) {
 	dir = filepath.Clean(dir)
 	prefixlen := len(dir + "/") // filepath.Clean removes trailing slash
 	f := func(path string, info os.FileInfo, err error) error {
@@ -32,13 +40,11 @@ func ParseDir(dir string) (*template.Template, error) {
 				return err
 			}
 			name := path[prefixlen:]
-			// tt is the template we're parsing,
-			// which might be the root if this
-			// is the first template file we've
-			// encountered.
 			var tt *template.Template
 			if t == nil {
 				t = template.New(name)
+			}
+			if name == t.Name() {
 				tt = t
 			} else {
 				tt = t.New(name)
@@ -53,7 +59,7 @@ func ParseDir(dir string) (*template.Template, error) {
 		return nil, err
 	}
 	if t == nil {
-		return nil, fmt.Errorf("ParseDir: no template files in directory")
+		return nil, fmt.Errorf("template: no files in directory")
 	}
 	return t, nil
 }
