@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -30,6 +31,7 @@ func ParseCourseFile(f string) (*Course, error) {
 		if p, err := ParseCourse(r); err != nil {
 			return nil, fmt.Errorf("error parsing file %v:\n%v", f, err)
 		} else {
+			p.location = path.Dir(f)
 			return p, nil
 		}
 	} else {
@@ -79,8 +81,8 @@ func ParseCourse(r io.Reader) (*Course, error) {
 }
 
 func NewCourse(code Code, name string, description string, taGroup *Group,
-	tas []User, studentGroup *Group, handinMethod *string) Course {
-	return Course{code, name, description, taGroup, tas, studentGroup, handinMethod}
+	tas []User, studentGroup *Group, handinMethod *string, location string) Course {
+	return Course{code, name, description, taGroup, tas, studentGroup, handinMethod, location}
 }
 
 type Course struct {
@@ -91,6 +93,7 @@ type Course struct {
 	tas          []User
 	studentGroup *Group
 	handinMethod *string
+	location     string
 }
 
 // supported handin methods

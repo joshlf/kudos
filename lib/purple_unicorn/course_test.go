@@ -25,7 +25,7 @@ func TestCorrectCourseFile(t *testing.T) {
 		grp1 := Group("staff")
 		grp2 := Group("sys")
 		facl := "facl"
-		expect := NewCourse("cs000", "test CS course", "a very simple cs course", &grp1, []User{User("jliebowf"), User("ezr")}, &grp2, &facl)
+		expect := NewCourse("cs000", "test CS course", "a very simple cs course", &grp1, []User{User("jliebowf"), User("ezr")}, &grp2, &facl, "")
 		if !reflect.DeepEqual(*p, expect) {
 			t.Fail()
 			t.Logf("Expected \n%v\n Got \n%v\n", *p, expect)
