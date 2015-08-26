@@ -41,7 +41,7 @@ func (c *Course) CreatePubFile() error {
 	if err != nil {
 		return err
 	}
-	acl.Set(c.PubFile(), acl.ACL([]acl.Entry{acl.Entry{
+	return acl.Set(c.PubFile(), acl.ACL([]acl.Entry{acl.Entry{
 		Tag:       acl.TagGroup,
 		Qualifier: string(*c.studentGroup),
 		Perms:     4,
@@ -50,8 +50,6 @@ func (c *Course) CreatePubFile() error {
 		Qualifier: string(*c.taGroup),
 		Perms:     6,
 	}}))
-
-	return nil
 }
 
 func (c *Course) AppendSpec(p PublicHandins) error {
@@ -159,5 +157,4 @@ func (c *Category) OpenHandin(path AssignmentPath) ([]PublicHandinSpec, error) {
 	}
 
 	return res, nil
-
 }
