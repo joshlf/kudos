@@ -5,15 +5,15 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/joshlf/kudos/lib/build"
+	"github.com/joshlf/kudos/lib/config"
 	"github.com/spf13/cobra"
-	"github.com/synful/kudos/lib/build"
-	"github.com/synful/kudos/lib/config"
 )
 
 var cmdDev = &cobra.Command{
 	Use:   "dev",
 	Short: "Print information useful to development of kudos",
-	// TODO(synful): long description
+	// TODO(joshlf): long description
 }
 
 func init() {

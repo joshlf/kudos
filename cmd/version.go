@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
+	"github.com/joshlf/kudos/lib/build"
 	"github.com/spf13/cobra"
-	"github.com/synful/kudos/lib/build"
 )
 
 var cmdVersion = &cobra.Command{

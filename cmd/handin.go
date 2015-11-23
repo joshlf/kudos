@@ -3,14 +3,14 @@ package main
 import (
 	"os"
 
+	"github.com/joshlf/kudos/lib/config"
+	"github.com/joshlf/kudos/lib/log"
+	"github.com/joshlf/kudos/lib/user"
 	"github.com/spf13/cobra"
-	"github.com/synful/kudos/lib/config"
-	"github.com/synful/kudos/lib/log"
-	"github.com/synful/kudos/lib/user"
 )
 
 var cmdHandin = &cobra.Command{
-	// TODO(synful): figure out how to
+	// TODO(joshlf): figure out how to
 	// mark the handin as optional in a
 	// way that is consistent with Cobra's
 	// output.
@@ -35,7 +35,7 @@ func init() {
 				if !a.HasMultipleHandins() {
 					log.Info.Printf("  %v\n", a.Code())
 				} else {
-					// TODO(synful): maybe change the output
+					// TODO(joshlf): maybe change the output
 					// format? This works for now, but we
 					// could think of something better.
 					log.Info.Printf("  %v [", a.Code())
@@ -58,7 +58,7 @@ func init() {
 				os.Exit(1)
 			}
 			if a.HasMultipleHandins() {
-				// TODO(synful): print more useful message,
+				// TODO(joshlf): print more useful message,
 				// such as available handins?
 				log.Error.Printf("assignment has multiple handins; please specify one\n")
 				os.Exit(1)
@@ -80,7 +80,7 @@ func init() {
 				log.Error.Printf("no such handin: %v\n", args[1])
 				os.Exit(1)
 			}
-			// TODO(synful): temporary to suppress compiler errors
+			// TODO(joshlf): temporary to suppress compiler errors
 			_ = h
 		default:
 			cmd.Help()
@@ -91,7 +91,7 @@ func init() {
 			log.Error.Printf("could not get current user: %v\n", err)
 			os.Exit(1)
 		}
-		// TODO(synful): temporary to suppress compiler errors
+		// TODO(joshlf): temporary to suppress compiler errors
 		_ = u
 	}
 	cmdHandin.Run = f

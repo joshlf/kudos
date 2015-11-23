@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
+	"github.com/joshlf/kudos/lib/config"
+	"github.com/joshlf/kudos/lib/log"
 	"github.com/spf13/cobra"
-	"github.com/synful/kudos/lib/config"
-	"github.com/synful/kudos/lib/log"
 )
 
 var cmdValidate = &cobra.Command{

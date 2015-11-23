@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 
+	"github.com/joshlf/kudos/lib/build"
+	"github.com/joshlf/kudos/lib/config"
+	"github.com/joshlf/kudos/lib/dev"
+	"github.com/joshlf/kudos/lib/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/synful/kudos/lib/build"
-	"github.com/synful/kudos/lib/config"
-	"github.com/synful/kudos/lib/dev"
-	"github.com/synful/kudos/lib/log"
 )
 
 var cmdMain = &cobra.Command{
