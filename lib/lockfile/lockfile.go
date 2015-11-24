@@ -3,15 +3,10 @@
 // host, and also between processes sharing an NFS
 // file system.
 //
-// This package provides two lock implementations -
-// a default implementation (New), and a legacy
-// implementation (NewLegacy). Most users will want
-// the default implementation. However, the algorithm
-// used is incorrect if used on NFS pre-version 3, or
-// if any of the machines attempting to acquire the
-// lock are running a Linux kernel pre-2.6. If either
-// of these is the case, legacy implementation should
-// be used.
+// Note that this package relies on guarantees that
+// are not provided on NFS pre-version 3 or on Linux
+// pre-version 2.6, so it is not safe for on either
+// of these systems.
 package lockfile
 
 import (
@@ -27,14 +22,6 @@ const (
 )
 
 var (
-	// ErrCollision is returned if the randomly generated
-	// handle-specific lockfile name used in the legacy
-	// algorithm collides with that of another lock handle.
-	// It is very likely that if this error is encountered,
-	// it indicates an issue with the cryptographic randomness
-	// available to this process. ErrCollision can only be
-	// returned from the legacy implementation's TryLock method.
-	ErrCollision   = errors.New("lockfile name collision")
 	ErrNeedAbsPath = errors.New("lockfile needs absolute directory path")
 )
 
@@ -44,43 +31,9 @@ var (
 //
 // A process can use multiple Locks simultaneously,
 // but they will behave completely independently,
-// and only one can locked at a time. Locks are safe
+// and only one can be locked at a time. Locks are safe
 // for concurrent access.
-type Lock interface {
-	// TryLock attempts to acquire the lock.
-	// It will panic if the lock is already acquired.
-	TryLock() (ok bool, err error)
-
-	// Unlock releases the lock. It will panic
-	// if the lock is not acquired.
-	Unlock() error
-}
-
-// TryLockN will call l.Lock up to n times,
-// sleeping for the given delay in between
-// each call. Users should call TryLockN
-// rather than implementing the functionality
-// themselves, as TryLockN is able to make
-// optimizations which rely on structures
-// internal to this package.
-func TryLockN(l Lock, n int, delay time.Duration) (ok bool, err error) {
-	if ll, ok := l.(*legacyLock); ok {
-		return ll.tryLockN(n, delay)
-	}
-	for i := 0; i < n; i++ {
-		ok, err = l.TryLock()
-		if ok || err != nil {
-			return
-		}
-		// Only sleep if we have tries left
-		if i+1 < n {
-			time.Sleep(delay)
-		}
-	}
-	return false, nil
-}
-
-type lock struct {
+type Lock struct {
 	file   string
 	locked bool
 	init   bool
@@ -92,26 +45,19 @@ type lock struct {
 // ErrNeedAbsPath. New only initializes the Lock
 // datastructure; no filesystem operations are performed
 // until a call to TryLock.
-//
-// The Lock returned by New uses an algorithm that is not
-// safe for use on NFS shares running NFS versions prior
-// to 3, or if any of the machines attempting to acquire
-// the lock are running on Linux kernel versions prior to
-// 2.6. If either of these conditions hold, NewLegacy
-// should be used instead.
-//
-// Locks returned by New and NewLegacy are incompatible;
-// using them together will result in undefined behavior.
-func New(dir string) (Lock, error) {
+func New(dir string) (*Lock, error) {
 	if !filepath.IsAbs(dir) {
 		return nil, ErrNeedAbsPath
 	}
-	return &lock{
+	return &Lock{
 		file: filepath.Join(dir, lockfilename),
+		init: true,
 	}, nil
 }
 
-func (l *lock) TryLock() (ok bool, err error) {
+// TryLock attempts to acquire the lock.
+// It will panic if the lock is already acquired.
+func (l *Lock) TryLock() (ok bool, err error) {
 	l.m.Lock()
 	defer l.m.Unlock()
 	if !l.init {
@@ -128,10 +74,31 @@ func (l *lock) TryLock() (ok bool, err error) {
 		return false, err
 	}
 	f.Close()
+	l.locked = true
 	return true, nil
 }
 
-func (l *lock) Unlock() error {
+// TryLockN is like TryLock, except that it
+// will try up to n times to acquire the lock,
+// sleeping for the given delay in between
+// each attempt.
+func (l *Lock) TryLockN(n int, delay time.Duration) (ok bool, err error) {
+	for i := 0; i < n; i++ {
+		ok, err = l.TryLock()
+		if ok || err != nil {
+			return
+		}
+		// Only sleep if we have tries left
+		if i+1 < n {
+			time.Sleep(delay)
+		}
+	}
+	return false, nil
+}
+
+// Unlock releases the lock. It will panic
+// if the lock is not acquired.
+func (l *Lock) Unlock() error {
 	l.m.Lock()
 	defer l.m.Unlock()
 	if !l.init {
