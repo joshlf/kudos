@@ -3,71 +3,13 @@ package perm
 import (
 	"fmt"
 	"os"
-	"os/exec"
 )
 
-type Perm uint8
-
 const (
-	Execute Perm = (1 << iota)
+	Execute os.FileMode = (1 << iota)
 	Write
 	Read
 )
-
-func (p Perm) String() string {
-	var s string
-	c := '-'
-	if p&Read != 0 {
-		c = 'r'
-	}
-	s += string(c)
-	c = '-'
-	if p&Write != 0 {
-		c = 'w'
-	}
-	s += string(c)
-	c = '-'
-	if p&Execute != 0 {
-		c = 'x'
-	}
-	s += string(c)
-	return s
-}
-
-func (p Perm) aclString() string {
-	var s string
-	if p&Read != 0 {
-		s += "r"
-	}
-	if p&Write != 0 {
-		s += "w"
-	}
-	if p&Execute != 0 {
-		s += "x"
-	}
-	return s
-}
-
-type Entity uint8
-
-const (
-	User Entity = iota
-	Group
-	Other
-)
-
-func (e Entity) aclString() string {
-	switch e {
-	case User:
-		return "u"
-	case Group:
-		return "g"
-	case Other:
-		return "o"
-	default:
-		panic(fmt.Errorf("perm: invalid Entity %v", uint8(e)))
-	}
-}
 
 // Parse parses a standard Unix
 // permission string (rwxrwxrwx)
@@ -96,49 +38,28 @@ func Parse(perm string) os.FileMode {
 	return mode
 }
 
-type Facl struct {
-	Entity Entity
-	Name   string
-	Perm   Perm
-}
-
-func (f Facl) aclArg() string {
-	if f.Entity == Other {
-		return fmt.Sprintf("%s:%s", f.Entity.aclString(), f.Perm.aclString())
+// ParseSingle parses a single component
+// of a standard Unix permission string
+// (rwx) and returns the corresponding
+// os.FileMode. perm must be 3 characters
+// long and be properly formatted or else
+// Parse will panic.
+func ParseSingle(perm string) os.FileMode {
+	var mode os.FileMode
+	if len(perm) != 3 {
+		panic("perm: perm string must be of length 3")
 	}
-	return fmt.Sprintf("%s:%s:%s", f.Entity.aclString(), f.Name, f.Perm.aclString())
-}
-
-// AddFacl adds the given facls to file.
-// It panics if len(facls) < 1.
-func AddFacl(file string, facls ...Facl) error {
-	// TODO(synful): implement without setfacl
-	// dependancy
-	// TODO(synful): test
-	if len(facls) < 1 {
-		panic("perm: no facls provided")
+	const on = "rwx"
+	const off = "---"
+	for i := 0; i < 3; i++ {
+		mode <<= 1
+		switch perm[i] {
+		case on[i]:
+			mode |= 1
+		case off[i]:
+		default:
+			panic(fmt.Errorf("perm: malformed perm string: %v", perm))
+		}
 	}
-	arg := faclArgString(facls...)
-	cmd := exec.Command("setfacl", "-m", arg, file)
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("run setfacl: %v", err)
-	}
-	return nil
-}
-
-// SetFacl sets the given facls on file,
-// removing any previous facls. If len(facls)
-// == 0, all facls are removed.
-func SetFacl(file string, facls ...Facl) error {
-	// TODO(synful)
-	panic("unimplemented")
-}
-
-func faclArgString(facls ...Facl) string {
-	var arg string
-	for _, facl := range facls {
-		arg += facl.aclArg() + ","
-	}
-	return arg
+	return mode
 }

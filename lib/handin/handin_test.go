@@ -18,26 +18,42 @@ import (
 
 func TestFaclHandin(t *testing.T) {
 	testDir := testutil.MustTempDir(t, "", "kudos")
-	// defer os.RemoveAll(testDir)
+	defer os.RemoveAll(testDir)
 
 	usr, err := user.Current()
-	testutil.MustPrefix(t, "could not get current user", err)
+	testutil.Must(t, err)
 
 	// Unfortunately, there's no way to actually exercise the
-	// permissions functionality since we own the file - if
-	// we deprive ourselves of write permissions but add a
-	// write ACL, we still won't be able to write to the file
-	// - the permissions check will fail on the basis of us
-	// being the file owner. Thus, the best we can do is just
-	// manually check that the permissions are what we expect,
-	// and expect that everything should work properly in the
-	// real world as a result.
-	targetPath := filepath.Join(testDir, "handin", usr.Uid+".tgz")
+	// permissions functionality since we own the file and
+	// folder - if we deprive ourselves of write permissions
+	// but add a write ACL, we still won't be able to write
+	// to the file - the permissions check will fail on the
+	// basis of us being the file owner. The same goes for
+	// read/execute on the folder. Thus, the best we can do
+	// is just manually check that the permissions are what
+	// we expect, and expect that everything should work
+	// properly in the real world as a result.
+	targetDirPath := filepath.Join(testDir, "handin", usr.Uid)
+	targetFilePath := filepath.Join(targetDirPath, handinFileName)
 	err = InitFaclHandin(filepath.Join(testDir, "handin"), []string{usr.Uid})
-	testutil.MustPrefix(t, "could not init handin directory", err)
+	testutil.Must(t, err)
 
-	a, err := acl.Get(targetPath)
+	a, err := acl.Get(targetDirPath)
+	testutil.Must(t, err)
 	expect := acl.ACL{
+		{acl.TagUserObj, "", perm.ParseSingle("rwx")},
+		{acl.TagUser, usr.Uid, perm.ParseSingle("r-x")},
+		{acl.TagGroupObj, "", perm.ParseSingle("rwx")},
+		{acl.TagMask, "", perm.ParseSingle("r-x")},
+		{acl.TagOther, "", 0},
+	}
+	if !reflect.DeepEqual(a, expect) {
+		t.Fatalf("directory has wrong permissions: want %v; got %v", expect, a)
+	}
+
+	a, err = acl.Get(targetFilePath)
+	testutil.Must(t, err)
+	expect = acl.ACL{
 		{acl.TagUserObj, "", os.FileMode(perm.Read)},
 		{acl.TagUser, usr.Uid, os.FileMode(perm.Write)},
 		{acl.TagGroupObj, "", os.FileMode(perm.Read)},
@@ -49,26 +65,26 @@ func TestFaclHandin(t *testing.T) {
 	}
 
 	// remove and recreate with write permissions
-	testutil.MustPrefix(t, "could not remove handin target", os.Remove(targetPath))
-	f, err := os.Create(targetPath)
-	testutil.MustPrefix(t, "could not create handin target", err)
+	testutil.Must(t, os.Remove(targetFilePath))
+	f, err := os.Create(targetFilePath)
+	testutil.Must(t, err)
 	f.Close()
 
 	handinPath := filepath.Join(testDir, "to_handin")
 	err = os.Mkdir(handinPath, 0700)
-	testutil.MustPrefix(t, "could not create directory to hand in", err)
+	testutil.Must(t, err)
 
 	err = ioutil.WriteFile(filepath.Join(testDir, "to_handin", "foo"), []byte("foo\n"), 0600)
-	testutil.MustPrefix(t, "could not write handin file", err)
+	testutil.Must(t, err)
 
-	err = PerformFaclHandin(handinPath, targetPath)
-	testutil.MustPrefix(t, "could not perform facl handin", err)
+	err = PerformFaclHandin(handinPath, targetFilePath)
+	testutil.Must(t, err)
 
-	f, err = os.Open(targetPath)
-	testutil.MustPrefix(t, "could not open handin archive", err)
+	f, err = os.Open(targetFilePath)
+	testutil.Must(t, err)
 
 	gr, err := gzip.NewReader(f)
-	testutil.MustPrefix(t, "could not create gzip reader", err)
+	testutil.Must(t, err)
 
 	tr := tar.NewReader(gr)
 
@@ -80,12 +96,27 @@ func TestFaclHandin(t *testing.T) {
 	got := make(map[string][]byte)
 	for i := 0; i < 2; i++ {
 		hdr, err := tr.Next()
-		testutil.MustPrefix(t, "could not read handin archive", err)
+		testutil.Must(t, err)
 		got[hdr.Name] = make([]byte, hdr.Size)
 		_, err = io.ReadFull(tr, got[hdr.Name])
-		testutil.MustPrefix(t, "could not read handin archive", err)
+		testutil.Must(t, err)
 	}
 	if !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected tar contents: want:\n%v\n\ngot:\n%v", expected, got)
+	}
+}
+
+func TestSetgidHandin(t *testing.T) {
+	testDir := testutil.MustTempDir(t, "", "kudos")
+	defer os.RemoveAll(testDir)
+
+	dir := filepath.Join(testDir, "handin")
+	testutil.Must(t, InitSetgidHandin(dir))
+
+	a, err := acl.Get(dir)
+	testutil.Must(t, err)
+
+	if acl.ToUnix(a) != perm.Parse("rwxrwx---") {
+		t.Errorf("bad handin directory permissions: want %v; got %v", perm.Parse("rwxrwx---"), acl.ToUnix(a))
 	}
 }
