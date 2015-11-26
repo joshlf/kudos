@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	acl "github.com/joshlf/go-acl"
+	"github.com/joshlf/kudos/lib/binexec"
 	"github.com/joshlf/kudos/lib/perm"
 )
 
@@ -15,21 +16,21 @@ const (
 	handinFileName = "handin.tgz"
 )
 
-// PerformFaclHandin performs a handin of the given
+// PerformFaclHandin performs a handin of the current
 // directory, writing a tar'd and gzip'd version of
 // it to target.
-func PerformFaclHandin(handin, target string) error {
+func PerformFaclHandin(target string) error {
 	tf, err := os.OpenFile(target, os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}
 	defer tf.Close()
 
-	cmd := exec.Command("tar", "c", filepath.Clean(handin))
+	cmd := exec.Command("tar", "c", ".")
 	gzw := gzip.NewWriter(tf)
 	defer gzw.Close()
 	cmd.Stdout = gzw
-	err = cmd.Run()
+	err = binexec.RunCmd(cmd)
 	if err != nil {
 		return fmt.Errorf("could not write handin archive: %v", err)
 	}

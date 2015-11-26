@@ -77,7 +77,11 @@ func TestFaclHandin(t *testing.T) {
 	err = ioutil.WriteFile(filepath.Join(testDir, "to_handin", "foo"), []byte("foo\n"), 0600)
 	testutil.Must(t, err)
 
-	err = PerformFaclHandin(handinPath, targetFilePath)
+	pwd, err := os.Getwd()
+	testutil.Must(t, err)
+	testutil.Must(t, os.Chdir(handinPath))
+	defer os.Chdir(pwd)
+	err = PerformFaclHandin(targetFilePath)
 	testutil.Must(t, err)
 
 	f, err = os.Open(targetFilePath)
@@ -89,9 +93,8 @@ func TestFaclHandin(t *testing.T) {
 	tr := tar.NewReader(gr)
 
 	expected := map[string][]byte{
-		// strip leading slash
-		handinPath[1:] + "/":    {},
-		handinPath[1:] + "/foo": []byte("foo\n"),
+		"./":    {},
+		"./foo": []byte("foo\n"),
 	}
 	got := make(map[string][]byte)
 	for i := 0; i < 2; i++ {
