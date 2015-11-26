@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	acl "github.com/joshlf/go-acl"
-	"github.com/joshlf/kudos/lib/binexec"
 	"github.com/joshlf/kudos/lib/perm"
 )
 
@@ -30,7 +29,7 @@ func PerformFaclHandin(target string) error {
 	gzw := gzip.NewWriter(tf)
 	defer gzw.Close()
 	cmd.Stdout = gzw
-	err = binexec.RunCmd(cmd)
+	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not write handin archive: %v", err)
 	}
