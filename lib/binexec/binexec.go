@@ -18,8 +18,14 @@ import (
 	"sync"
 )
 
+type lib struct {
+	name     string
+	contents []byte
+}
+
 type bin struct {
 	contents  []byte
+	libs      []lib
 	instances int
 	path, dir string
 }
@@ -29,10 +35,10 @@ var (
 	binmtx sync.RWMutex
 )
 
-func writeBin(cmd string) (path string, err error) {
+func writeBin(cmd string) (err error) {
 	dirpath, err := ioutil.TempDir("", "kudos")
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer func() {
 		if err != nil {
@@ -42,14 +48,34 @@ func writeBin(cmd string) (path string, err error) {
 
 	err = os.Chmod(dirpath, 0700)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	bin := bins[cmd]
+	if len(bin.libs) > 0 {
+		libpath := filepath.Join(dirpath, "lib")
+		// unlikely, but just in case; make sure this
+		// stays in sync with behavior in Run
+		if cmd == "lib" {
+			libpath = filepath.Join(dirpath, "libdir")
+		}
+		err = os.Mkdir(libpath, 0700)
+		if err != nil {
+			return err
+		}
+		for _, lib := range bin.libs {
+			path := filepath.Join(libpath, lib.name)
+			err = ioutil.WriteFile(path, lib.contents, 0600)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	binpath := filepath.Join(dirpath, cmd)
 	f, err := os.OpenFile(binpath, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer f.Close()
 
@@ -57,17 +83,17 @@ func writeBin(cmd string) (path string, err error) {
 	// mask out execute bit, so set perms explicitly
 	err = os.Chmod(binpath, 0700)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	_, err = f.Write(bin.contents)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	bins[cmd].dir = dirpath
 	bins[cmd].path = binpath
-	return binpath, nil
+	return nil
 }
 
 // Run runs the binary with the given name and
@@ -94,19 +120,18 @@ func RunCmd(cmd *exec.Cmd) error {
 	bin, ok := bins[name]
 	if !ok {
 		binmtx.Unlock()
-		return fmt.Errorf("run %q: no such binary", name)
+		return fmt.Errorf("run %v: no such binary", name)
 	}
 	if bin.instances == 0 {
-		var err error
-		path, err = writeBin(name)
+		err := writeBin(name)
 		if err != nil {
 			binmtx.Unlock()
 			return err
 		}
 		bin.instances = 1
-	} else {
-		path = bin.path
 	}
+	path = bin.path
+
 	binmtx.Unlock()
 
 	// after this point, bin.instances > 0,
@@ -114,11 +139,42 @@ func RunCmd(cmd *exec.Cmd) error {
 
 	// we don't want to modify cmd at all, so make
 	// a copy of its contents and make sure not to
-	// modify any shared memory (namely, the Args
+	// modify any shared memory (namely, the Env
 	// slice)
 	c := *cmd
 	c.Path = path
-	c.Args = append([]string(nil), c.Args...)
+
+	// if the command relies on shared libraries,
+	// make sure that LD_LIBRARY_PATH is set so
+	// that it knows where to find them
+	if len(bin.libs) > 0 {
+		// if c.Env is nil, os/exec will replace it
+		// with this process' environment
+		if c.Env == nil {
+			c.Env = os.Environ()
+		} else {
+			c.Env = append([]string(nil), c.Env...)
+		}
+		libpath := filepath.Join(bin.dir, "lib")
+		if name == "lib" {
+			libpath = filepath.Join(bin.dir, "libdir")
+		}
+		const envvar = "LD_LIBRARY_PATH="
+		var foundVar bool
+		for i, e := range c.Env {
+			if len(e) >= len(envvar) && e[:len(envvar)] == envvar {
+				foundVar = true
+				c.Env[i] = envvar + libpath
+				// TODO(joshlf): could break here, but probably
+				// better to overwrite each copy if there are
+				// multiple?
+			}
+		}
+		if !foundVar {
+			c.Env = append([]string{envvar + libpath}, c.Env...)
+		}
+	}
+	fmt.Printf("%#v\n", c)
 
 	err := c.Run()
 	binmtx.Lock()
@@ -134,6 +190,7 @@ func RunCmd(cmd *exec.Cmd) error {
 
 	bin.instances--
 	if bin.instances == 0 {
+		panic("foo")
 		err2 := os.RemoveAll(bin.dir)
 		if err2 != nil && err == nil {
 			err = err2
@@ -142,5 +199,8 @@ func RunCmd(cmd *exec.Cmd) error {
 		bin.path = ""
 		bin.dir = ""
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("run %v: %v", name, err)
+	}
+	return nil
 }
