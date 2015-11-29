@@ -19,19 +19,46 @@ const (
 // directory, writing a tar'd and gzip'd version of
 // it to target.
 func PerformFaclHandin(target string) error {
-	tf, err := os.OpenFile(target, os.O_WRONLY, 0)
+	f, err := os.OpenFile(target, os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}
-	defer tf.Close()
+	defer f.Close()
 
-	cmd := exec.Command("tar", "c", ".")
-	gzw := gzip.NewWriter(tf)
+	cmd := exec.Command("tar", "-c", ".")
+	gzw := gzip.NewWriter(f)
 	defer gzw.Close()
 	cmd.Stdout = gzw
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("could not write handin archive: %v", err)
+		return err
+	}
+	return nil
+}
+
+// ExtractHandin extracts the given handin (which must
+// be a tar'd and gzip'd file) to the target directory,
+// which must already exist.
+func ExtractHandin(handin, target string) error {
+	f, err := os.Open(handin)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	gzr, err := gzip.NewReader(f)
+	if err != nil {
+		return err
+	}
+	defer gzr.Close()
+
+	cmd := exec.Command("tar", "-x", "-C", target)
+	cmd.Stdin = gzr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return err
 	}
 	return nil
 }

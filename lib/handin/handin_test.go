@@ -3,9 +3,11 @@ package handin
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"reflect"
@@ -18,7 +20,16 @@ import (
 
 func TestFaclHandin(t *testing.T) {
 	testDir := testutil.MustTempDir(t, "", "kudos")
-	defer os.RemoveAll(testDir)
+	defer func() {
+		err := os.RemoveAll(testDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not remove temp directory: %v\n", err)
+		}
+	}()
+
+	/*
+		Set up the handin directory
+	*/
 
 	usr, err := user.Current()
 	testutil.Must(t, err)
@@ -64,6 +75,10 @@ func TestFaclHandin(t *testing.T) {
 		t.Fatalf("file has wrong permissions: want %v; got %v", expect, a)
 	}
 
+	/*
+		Set up the handin
+	*/
+
 	// remove and recreate with write permissions
 	testutil.Must(t, os.Remove(targetFilePath))
 	f, err := os.Create(targetFilePath)
@@ -77,12 +92,20 @@ func TestFaclHandin(t *testing.T) {
 	err = ioutil.WriteFile(filepath.Join(testDir, "to_handin", "foo"), []byte("foo\n"), 0600)
 	testutil.Must(t, err)
 
+	/*
+		Perform the handin
+	*/
+
 	pwd, err := os.Getwd()
 	testutil.Must(t, err)
 	testutil.Must(t, os.Chdir(handinPath))
 	defer os.Chdir(pwd)
 	err = PerformFaclHandin(targetFilePath)
 	testutil.Must(t, err)
+
+	/*
+		Verify the handin
+	*/
 
 	f, err = os.Open(targetFilePath)
 	testutil.Must(t, err)
@@ -107,6 +130,21 @@ func TestFaclHandin(t *testing.T) {
 	if !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected tar contents: want:\n%v\n\ngot:\n%v", expected, got)
 	}
+
+	/*
+		Extract the handin
+	*/
+
+	extractDir := filepath.Join(testDir, "extract")
+	testutil.Must(t, os.Mkdir(extractDir, 0700))
+	testutil.Must(t, ExtractHandin(targetFilePath, extractDir))
+
+	/*
+		Verify the extracted handin
+	*/
+
+	err = exec.Command("diff", "-rN", handinPath, extractDir).Run()
+	testutil.Must(t, err)
 }
 
 func TestSetgidHandin(t *testing.T) {
