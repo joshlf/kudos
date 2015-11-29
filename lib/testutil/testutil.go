@@ -8,6 +8,9 @@ import (
 	"testing"
 )
 
+// TODO(joshlf): Add ExpectError method that expects
+// a non-nil error with Error() matching a given string
+
 type testingT interface {
 	Fatalf(format string, args ...interface{})
 }
