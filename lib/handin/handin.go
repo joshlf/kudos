@@ -18,7 +18,7 @@ const (
 // PerformFaclHandin performs a handin of the current
 // directory, writing a tar'd and gzip'd version of
 // it to target.
-func PerformFaclHandin(target string) error {
+func PerformFaclHandin(target string) (err error) {
 	f, err := os.OpenFile(target, os.O_WRONLY, 0)
 	if err != nil {
 		return err
@@ -39,7 +39,7 @@ func PerformFaclHandin(target string) error {
 // ExtractHandin extracts the given handin (which must
 // be a tar'd and gzip'd file) to the target directory,
 // which must already exist.
-func ExtractHandin(handin, target string) error {
+func ExtractHandin(handin, target string) (err error) {
 	f, err := os.Open(handin)
 	if err != nil {
 		return err
