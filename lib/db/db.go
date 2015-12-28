@@ -1,320 +1,185 @@
+// Package db provides facilities for making
+// atomic transactions on a filesystem-based
+// database. The databsae itself is a json
+// object. The database is read by unmarshaling
+// this object into a Go structure, and modifications
+// are made by marshaling a modified version
+// of the structure back into a json object
+// which overwrites the original.
+//
+// Transactions on the database are atomic in
+// the following sense: when the database is
+// opened, a file-based lock is acquired which
+// grants the caller exclusive access to the
+// database until any changes are committed
+// (at which point the lock is released). Opening
+// the database will fail if the lock cannot be
+// acquired (because another transaction is
+// in progress). Additionally, if there are errors
+// writing the new state of the database, they
+// will cause the entire transaction to fail,
+// and the database will remain in the state it
+// was in before the transaction began. This
+// is accomplished by writing a copy of the new
+// database state to a temporary file, and then
+// moving the temporary file to replace the
+// database file. So long as the operating system's
+// move functionality is atomic, transactions can
+// only succeed or fail - they cannot leave the
+// database in a partially-updated state.
 package db
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"reflect"
-	"strconv"
-	"strings"
+	"os"
+	"path/filepath"
+	"sync/atomic"
+	"time"
+
+	"github.com/joshlf/kudos/lib/config"
+	"github.com/joshlf/kudos/lib/lockfile"
 )
 
 var (
-	numtyp    = reflect.TypeOf(json.Number(""))
-	booltyp   = reflect.TypeOf(true)
-	stringtyp = reflect.TypeOf("")
-	objtyp    = reflect.TypeOf(map[string]interface{}{})
-	arrtyp    = reflect.TypeOf([]interface{}{})
+	ErrNeedAbsPath = errors.New("need absolute path")
+	ErrLockFailed  = errors.New("could not acquire lock")
 )
 
-func diff(a, b interface{}, path []interface{}) []interface{} {
-	if reflect.TypeOf(a) != reflect.TypeOf(b) {
-		return path
+// Committer is a function which will take a new
+// value for the database and commit it to disk.
+// If v is nil, the database is closed with no
+// changes written. A Committer can only be called
+// once: any subsequent calls will panic.
+type Committer func(v interface{}) error
+
+// Open opens the database stored in the directory
+// given by path, and unmarshals the contents of the
+// database into v (which must be a pointer type).
+// The returned Committer can be used to commit any
+// changes to the database and close it. path must
+// be an absolute path, or Open will return the error
+// ErrNeedAbsPath.
+//
+// Before opening, a lock is acquired on the database;
+// this lock is released once changes have been committed.
+// If the lock cannot be acquired, Open will return the
+// error ErrLockFailed.
+func Open(v interface{}, path string) (c Committer, err error) {
+	// The path needs to be absolute because the current
+	// directory could change between this function returning
+	// and the committer being called.
+	if !filepath.IsAbs(path) {
+		return nil, ErrNeedAbsPath
 	}
-	typ := reflect.TypeOf(a)
-	switch typ {
-	case booltyp, numtyp, stringtyp:
-		// TODO(synful): Since we use json.Number
-		// for numbers, this amounts to string
-		// comparison for numbers. There could be
-		// multiple different representations of
-		// a given number; we should either convert
-		// to an actual number or canonicalize the
-		// string before comparing.
-		if a != b {
-			return path
+	lpath := filepath.Join(path, config.DBLockFileName)
+	lock, err := lockfile.New(lpath)
+	if err != nil {
+		panic(fmt.Errorf("db: unexpected error: %v", err))
+	}
+	// 3 times and 30ms is chosen so that the total
+	// time spent waiting will not be a meaningful
+	// pause from the perspective of the user (and
+	// will also perform well if run in a loop)
+	ok, err := lock.TryLockN(3, 30*time.Millisecond)
+	if err != nil {
+		return nil, fmt.Errorf("acquire lock: %v", err)
+	} else if !ok {
+		return nil, ErrLockFailed
+	}
+
+	// Release the lock if we return an error later on
+	defer func() {
+		if err != nil {
+			lock.Unlock()
+		}
+	}()
+
+	dbpath := filepath.Join(path, config.DBFileName)
+	f, err := os.Open(dbpath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	d := json.NewDecoder(f)
+	err = d.Decode(&v)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal from file: %v", err)
+	}
+
+	var done uint32
+	c = func(v interface{}) (err error) {
+		if !atomic.CompareAndSwapUint32(&done, 0, 1) {
+			panic("db: Committer called twice")
+		}
+
+		defer func() {
+			err2 := lock.Unlock()
+			// only return an error from Unlock
+			// if we aren't already returning
+			// an error
+			if err2 != nil && err == nil {
+				err = fmt.Errorf("release lock: %v", err2)
+			}
+		}()
+		tmppath := filepath.Join(path, config.DBTempFileName)
+		f, err := os.Create(tmppath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		e := json.NewEncoder(f)
+		err = e.Encode(v)
+		if err != nil {
+			return fmt.Errorf("marshal to file: %v", err)
+		}
+		err = f.Sync()
+		if err != nil {
+			return fmt.Errorf("marshal to file: %v", err)
+		}
+		err = os.Rename(tmppath, dbpath)
+		if err != nil {
+			return fmt.Errorf("atomically update: %v", err)
 		}
 		return nil
-	case objtyp:
-		a := a.(map[string]interface{})
-		b := b.(map[string]interface{})
-		if len(a) != len(b) {
-			return path
-		}
-		for k := range a {
-			if _, ok := b[k]; !ok {
-				return path
-			}
-		}
-		var changelist [][]interface{}
-		for k := range a {
-			pathtmp := diff(a[k], b[k], append(path, k))
-			if pathtmp != nil {
-				changelist = append(changelist, pathtmp)
-			}
-		}
-		switch {
-		case len(changelist) == 0:
-			return nil
-		case len(changelist) == 1:
-			return changelist[0]
-		default:
-			return path
-		}
-	case arrtyp:
-		a := a.([]interface{})
-		b := b.([]interface{})
-		if len(a) != len(b) {
-			return path
-		}
-		var changelist [][]interface{}
-		for i := range a {
-			pathtmp := diff(a[i], b[i], append(path, i))
-			if pathtmp != nil {
-				changelist = append(changelist, pathtmp)
-			}
-		}
-		switch {
-		case len(changelist) == 0:
-			return nil
-		case len(changelist) == 1:
-			return changelist[0]
-		default:
-			return path
-		}
-	default:
-		panic("internal error: unreachable code")
 	}
+	return c, nil
 }
 
-func mapToExt(from interface{}, to reflect.Value) error {
-	totyp := to.Type()
-	fromtyp := typname(reflect.TypeOf(from))
+// TODO(joshlf): Do we care about acquiring a lock in
+// this directory when initializing? If we can assume
+// that initialization will happen before anyone else
+// tries to operate on the database, then yes, but maybe
+// we should acquire the lock first just to be safe.
+// After all, it would be a very subtle thing to debug
+// if a corruption happened.
 
-	// NOTE(synful): Numeric conversion code
-	// copied from json package's decode.go
-	switch totyp.Kind() {
-	case reflect.Bool:
-		f, ok := from.(bool)
-		if !ok {
-			return fmt.Errorf("cannot convert %v to %v", reflect.TypeOf(from), totyp)
-		}
-		to.SetBool(f)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		n, ok := from.(json.Number)
-		if !ok {
-			return fmt.Errorf("cannot convert %v to %v", totyp, fromtyp)
-		}
-		nn, err := strconv.ParseInt(string(n), 10, 64)
-		if err != nil || to.OverflowInt(nn) {
-			// Since the Number was marshalled by json,
-			// we know it's properly formatted, so the
-			// only errors ParseInt could return are
-			// overflow errors
-			return fmt.Errorf("value %v overflows %v", n, totyp)
-		}
-		to.SetInt(nn)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		n, ok := from.(json.Number)
-		if !ok {
-			return fmt.Errorf("cannot convert %v to %v", totyp, fromtyp)
-		}
-		nn, err := strconv.ParseUint(string(n), 10, 64)
-		if err != nil || to.OverflowUint(nn) {
-			// Since the Number was marshalled by json,
-			// we know it's properly formatted, so the
-			// only errors ParseUint could return are
-			// overflow errors
-			return fmt.Errorf("value %v overflows %v", n, totyp)
-		}
-		to.SetUint(nn)
-	case reflect.Float32, reflect.Float64:
-		n, ok := from.(json.Number)
-		if !ok {
-			return fmt.Errorf("cannot convert %v to %v", totyp, fromtyp)
-		}
-		nn, err := strconv.ParseFloat(string(n), totyp.Bits())
-		if err != nil || to.OverflowFloat(nn) {
-			// Since the Number was marshalled by json,
-			// we know it's properly formatted, so the
-			// only errors ParseFloat could return are
-			// overflow errors
-			return fmt.Errorf("value %v overflows %v", n, totyp)
-		}
-		to.SetFloat(nn)
-	case reflect.String:
-		s, ok := from.(string)
-		if !ok {
-			return fmt.Errorf("cannot convert %v to %v", totyp, fromtyp)
-		}
-		to.SetString(s)
-	case reflect.Array, reflect.Slice:
-		f, ok := from.([]interface{})
-		if !ok {
-			return fmt.Errorf("cannot convert %v to %v", totyp, fromtyp)
-		}
-		if to.Kind() == reflect.Slice {
-			to.Set(reflect.MakeSlice(to.Type(), len(f), len(f)))
-		} else if to.Len() != len(f) {
-			// TODO(synful): This is as restrictive
-			// as can be, so we can always relax the
-			// rules later. The json package allows
-			// any length, and either doesn't fill
-			// the extra etnries in the Go array, or
-			// just throws away the extra entries in
-			// the json array.
-			return fmt.Errorf("cannot convert array of length %v to %v", len(f), fromtyp)
-		}
-		for i, v := range f {
-			err := mapToExt(v, to.Index(i))
-			if err != nil {
-				return err
-			}
-		}
+// Init creates a database in the given directory whose
+// initial contents are v. The directory must already
+// exist. path must be an absolute path, or Init will
+// return ErrNeedAbsPath.
+func Init(v interface{}, path string) (err error) {
+	// not strictly necessary, but just to be consistent with Open
+	if !filepath.IsAbs(path) {
+		return ErrNeedAbsPath
+	}
+
+	dbpath := filepath.Join(path, config.DBFileName)
+	f, err := os.Create(dbpath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	e := json.NewEncoder(f)
+	err = e.Encode(v)
+	if err != nil {
+		return fmt.Errorf("marshal to file: %v", err)
+	}
+	err = f.Sync()
+	if err != nil {
+		return fmt.Errorf("marshal to file: %v", err)
 	}
 	return nil
-}
-
-// assumes val.Type() has been validated
-func extToMap(val reflect.Value) (interface{}, error) {
-	typ := val.Type()
-	switch typ.Kind() {
-	case reflect.Bool,
-		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Float32, reflect.Float64, reflect.String,
-		reflect.Uintptr, reflect.UnsafePointer:
-		// These are all fine to leave as themselves -
-		// the json package will marshal them the way
-		// we want, so we don't need to do anything custom.
-		return val.Interface(), nil
-	case reflect.Array, reflect.Slice:
-		slc := make([]interface{}, val.Len())
-		for i := range slc {
-			var err error
-			slc[i], err = extToMap(val.Index(i))
-			if err != nil {
-				return nil, err
-			}
-		}
-		return slc, nil
-	case reflect.Interface, reflect.Ptr:
-		return extToMap(val.Elem())
-	case reflect.Map:
-		names := make(map[string]string)
-		m := make(map[string]interface{})
-		for _, k := range val.MapKeys() {
-			effective := sanitizeFieldName(k.String())
-			// Can't validate this based on the type
-			// alone, so we have to validate dynamically
-			if effective == "" {
-				return nil, fmt.Errorf("invalid field name %v", k.String())
-			}
-			if other, ok := names[effective]; ok {
-				return nil, fmt.Errorf("map keys %v and %v conflict", k.String(), other)
-			}
-			names[effective] = k.String()
-			var err error
-			m[effective], err = extToMap(val.MapIndex(k))
-			if err != nil {
-				return nil, err
-			}
-		}
-		return m, nil
-	case reflect.Struct:
-		m := make(map[string]interface{})
-		for i := 0; i < typ.NumField(); i++ {
-			field := typ.Field(i)
-			// See https://golang.org/pkg/reflect/#StructField
-			exported := field.PkgPath == ""
-			if exported {
-				var err error
-				m[sanitizeFieldName(field.Name)], err = extToMap(val.Field(i))
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-		return m, nil
-	default: // channel, complex, function types
-		return nil, fmt.Errorf("unsupported type")
-	}
-}
-
-func validateType(typ reflect.Type) error {
-	return validateTypeHelper(typ, make(map[reflect.Type]bool))
-}
-
-func validateTypeHelper(typ reflect.Type, seen map[reflect.Type]bool) error {
-	if seen[typ] {
-		return nil
-	}
-	seen[typ] = true
-
-	switch typ.Kind() {
-	case reflect.Array, reflect.Slice, reflect.Interface, reflect.Ptr:
-		return validateTypeHelper(typ.Elem(), seen)
-	case reflect.Map:
-		if typ.Key().Kind() != reflect.String {
-			return fmt.Errorf("unsupported type %v", typ)
-		}
-		return validateTypeHelper(typ.Elem(), seen)
-	case reflect.Struct:
-		m := make(map[string]string)
-		for i := 0; i < typ.NumField(); i++ {
-			field := typ.Field(i)
-			// See https://golang.org/pkg/reflect/#StructField
-			exported := field.PkgPath == ""
-			if exported {
-				effective := sanitizeFieldName(field.Name)
-				if effective == "" {
-					return fmt.Errorf("invalid struct field name %v", field.Name)
-				}
-				if other, ok := m[effective]; ok {
-					return fmt.Errorf("struct fields %v and %v conflict", field.Name, other)
-				}
-				m[effective] = field.Name
-				if err := validateTypeHelper(field.Type, seen); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	default:
-		return nil
-	}
-}
-
-// Removes all but letters and numbers and
-// converts to lowercase and removes
-// leading numbers
-func sanitizeFieldName(s string) string {
-	s = strings.ToLower(s)
-	var ss string
-	var seenLetter bool
-	for _, c := range s {
-		switch {
-		case 'a' <= c && c <= 'z':
-			ss += string(c)
-			seenLetter = true
-		case '0' <= c && c <= '9' && seenLetter:
-			ss += string(c)
-		}
-	}
-	return ss
-}
-
-var typnames = map[reflect.Type]string{
-	numtyp:    "number",
-	booltyp:   "bool",
-	stringtyp: "string",
-	objtyp:    "object",
-	arrtyp:    "array",
-}
-
-func typname(typ reflect.Type) string {
-	name, ok := typnames[typ]
-	if !ok {
-		panic("internal error: invalid type")
-	}
-	return name
 }
