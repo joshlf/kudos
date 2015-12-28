@@ -138,19 +138,16 @@ func TestTryLockN(t *testing.T) {
 
 func TestErr(t *testing.T) {
 	lock, err := New("foo")
-	errmsg := "needs absolute path"
-	if err == nil || err.Error() != errmsg {
-		t.Errorf("unexpected error return from New: want \"%v\"; got \"%v\"", errmsg, err)
-	}
+	testutil.MustError(t, "need absolute path", err)
 
 	// will try to create /dev/null/foo
 	// (which should obviously fail)
 	lock, err = New("/dev/null/foo")
 	testutil.Must(t, err)
 	ok, err := lock.TryLock()
-	errmsg = "open /dev/null/foo: not a directory"
-	if ok || err == nil || err.Error() != errmsg {
-		t.Errorf("unexpected return from TryLock: want (false, \"%v\"); got (%v, \"%v\") ", errmsg, ok, err)
+	testutil.MustError(t, "open /dev/null/foo: not a directory", err)
+	if ok {
+		t.Errorf("unexpected return from TryLock: got %v; want false", ok)
 	}
 
 	testDir := testutil.MustTempDir(t, "", "kudos")
