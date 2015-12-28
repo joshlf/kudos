@@ -15,7 +15,7 @@ import (
 func TestLock(t *testing.T) {
 	testDir := testutil.MustTempDir(t, "", "kudos")
 	defer os.RemoveAll(testDir)
-	lock, err := New(testDir)
+	lock, err := New(filepath.Join(testDir, "lock"))
 	testutil.Must(t, err)
 	ok, err := lock.TryLock()
 	testutil.Must(t, err)
@@ -58,7 +58,7 @@ func TestParallel(t *testing.T) {
 	locks := make([]*Lock, numLocks)
 	for i := range locks {
 		var err error
-		locks[i], err = New(testDir)
+		locks[i], err = New(filepath.Join(testDir, "lock"))
 		testutil.Must(t, err)
 	}
 
@@ -109,7 +109,7 @@ func TestParallel(t *testing.T) {
 func TestTryLockN(t *testing.T) {
 	testDir := testutil.MustTempDir(t, "", "kudos")
 	defer os.RemoveAll(testDir)
-	lock, err := New(testDir)
+	lock, err := New(filepath.Join(testDir, "lock"))
 	testutil.Must(t, err)
 	ok, err := lock.TryLock()
 	testutil.Must(t, err)
@@ -117,7 +117,7 @@ func TestTryLockN(t *testing.T) {
 		t.Errorf("failed to acquire lock")
 	}
 
-	lock2, err := New(testDir)
+	lock2, err := New(filepath.Join(testDir, "lock"))
 	testutil.Must(t, err)
 
 	var wg sync.WaitGroup
@@ -137,19 +137,25 @@ func TestTryLockN(t *testing.T) {
 }
 
 func TestErr(t *testing.T) {
-	// will try to create /dev/null/lock
+	lock, err := New("foo")
+	errmsg := "needs absolute path"
+	if err == nil || err.Error() != errmsg {
+		t.Errorf("unexpected error return from New: want \"%v\"; got \"%v\"", errmsg, err)
+	}
+
+	// will try to create /dev/null/foo
 	// (which should obviously fail)
-	lock, err := New("/dev/null")
+	lock, err = New("/dev/null/foo")
 	testutil.Must(t, err)
 	ok, err := lock.TryLock()
-	errmsg := "open /dev/null/lock: not a directory"
+	errmsg = "open /dev/null/foo: not a directory"
 	if ok || err == nil || err.Error() != errmsg {
 		t.Errorf("unexpected return from TryLock: want (false, \"%v\"); got (%v, \"%v\") ", errmsg, ok, err)
 	}
 
 	testDir := testutil.MustTempDir(t, "", "kudos")
 	defer os.RemoveAll(testDir)
-	lock, err = New(testDir)
+	lock, err = New(filepath.Join(testDir, "lock"))
 	testutil.Must(t, err)
 	ok, err = lock.TryLock()
 	testutil.Must(t, err)

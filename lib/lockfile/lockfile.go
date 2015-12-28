@@ -17,17 +17,16 @@ import (
 	"time"
 )
 
-const (
-	lockfilename = "lock"
-)
-
 var (
-	ErrNeedAbsPath = errors.New("lockfile needs absolute directory path")
+	ErrNeedAbsPath = errors.New("need absolute path")
 )
 
 // Lock is a handle to a file-based lock. The lock
-// requires a directory in which to operate, which
-// must exist ahead of time, and must be empty.
+// requires a path to a file (whose existence will
+// signal that the lock is locked). In order for
+// a Lock to work properly, the lock file should
+// not exist ahead of time, unless created by another
+// instance of Lock.
 //
 // A process can use multiple Locks simultaneously,
 // but they will behave completely independently,
@@ -40,24 +39,32 @@ type Lock struct {
 	m      sync.Mutex
 }
 
-// New creates a new Lock with the given directory, which
-// must be an absolute path; if it is not, New will return
-// ErrNeedAbsPath. New only initializes the Lock
+// New creates a new Lock with the given file, which
+// must be an absolute path; if it is not, New will
+// return ErrNeedAbsPath. New only initializes the Lock
 // datastructure; no filesystem operations are performed
 // until a call to TryLock.
-func New(dir string) (*Lock, error) {
-	if !filepath.IsAbs(dir) {
+func New(path string) (*Lock, error) {
+	if !filepath.IsAbs(path) {
 		return nil, ErrNeedAbsPath
 	}
 	return &Lock{
-		file: filepath.Join(dir, lockfilename),
+		file: path,
 		init: true,
 	}, nil
 }
 
-// TryLock attempts to acquire the lock.
-// It will panic if the lock is already acquired.
+// TryLock is equivalent to TryLockN(1, 0).
 func (l *Lock) TryLock() (ok bool, err error) {
+	return l.TryLockN(1, 0)
+
+}
+
+// TryLockN attempts to acquire the lock up to
+// n times, sleeping for the given delay in between
+// each attempt. It will panic if the lock is already
+// acquired.
+func (l *Lock) TryLockN(n int, delay time.Duration) (ok bool, err error) {
 	l.m.Lock()
 	defer l.m.Unlock()
 	if !l.init {
@@ -66,6 +73,20 @@ func (l *Lock) TryLock() (ok bool, err error) {
 	if l.locked {
 		panic("lockfile: tried to lock acquired lock")
 	}
+	for i := 0; i < n; i++ {
+		ok, err = l.tryLock()
+		if ok || err != nil {
+			return
+		}
+		// Only sleep if we have tries left
+		if i+1 < n {
+			time.Sleep(delay)
+		}
+	}
+	return false, nil
+}
+
+func (l *Lock) tryLock() (bool, error) {
 	f, err := os.OpenFile(l.file, os.O_RDONLY|os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
 		if os.IsExist(err) {
@@ -76,24 +97,6 @@ func (l *Lock) TryLock() (ok bool, err error) {
 	f.Close()
 	l.locked = true
 	return true, nil
-}
-
-// TryLockN is like TryLock, except that it
-// will try up to n times to acquire the lock,
-// sleeping for the given delay in between
-// each attempt.
-func (l *Lock) TryLockN(n int, delay time.Duration) (ok bool, err error) {
-	for i := 0; i < n; i++ {
-		ok, err = l.TryLock()
-		if ok || err != nil {
-			return
-		}
-		// Only sleep if we have tries left
-		if i+1 < n {
-			time.Sleep(delay)
-		}
-	}
-	return false, nil
 }
 
 // Unlock releases the lock. It will panic
