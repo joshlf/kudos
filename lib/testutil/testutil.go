@@ -95,6 +95,21 @@ func must(t testingT, err error) {
 	}
 }
 
+// MustError logs to t.Fatalf if err == nil
+// or if err.Error() != expect.
+func MustError(t *testing.T, expect string, err error) {
+	mustErrorImpl(t, expect, err)
+}
+
+func mustErrorImpl(t testingT, expect string, err error) {
+	if err == nil {
+		nfatalf(t, 2, "unexpected nil error")
+	}
+	if err.Error() != expect {
+		nfatalf(t, 2, "unexpected error: got \"%v\"; want \"%v\"", err, expect)
+	}
+}
+
 // fatalf is equivalent to nfatalf with n = 3;
 // it should be called only by second-level functions.
 func fatalf(t testingT, format string, args ...interface{}) {
@@ -110,5 +125,4 @@ func nfatalf(t testingT, n int, format string, args ...interface{}) {
 	}
 	file = filepath.Base(file)
 	t.Fatalf("%v:%v: "+format, append([]interface{}{file, line}, args...)...)
-
 }

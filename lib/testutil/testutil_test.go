@@ -60,7 +60,7 @@ func expectFatal(t *testing.T, regex string, f func()) {
 			panic(r)
 		}
 		if !re.MatchString(string(me)) {
-			t.Errorf("%v: unexpected call to Fatalf: want regex %v; got %v", prefix, re, me)
+			t.Errorf("%v: unexpected call to Fatalf: got %v; want regex %v", prefix, me, re)
 		}
 	}()
 	f()
@@ -117,6 +117,16 @@ func TestMustPrefix(t *testing.T) {
 	expectSuccess(t, func() { mustPrefix(mock, "", nil) })
 	f := func() { mustPrefix(mock, "foo", errors.New("bar")) }
 	expectFatal(t, "testutil_test.go:[0-9]+: foo: bar", f)
+}
+
+func TestMustError(t *testing.T) {
+	err := fmt.Errorf("foo")
+	expectSuccess(t, func() { mustErrorImpl(mock, "foo", err) })
+	f := func() { mustErrorImpl(mock, "foo", nil) }
+	expectFatal(t, "testutil_test.go:[0-9]+: unexpected nil error", f)
+	err = fmt.Errorf("bar")
+	f = func() { mustErrorImpl(mock, "foo", err) }
+	expectFatal(t, "testutil_test.go:[0-9]+: unexpected error: got \"bar\"; want \"foo\"", f)
 }
 
 func TestMustTempFile(t *testing.T) {
