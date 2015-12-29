@@ -84,7 +84,7 @@ func getContext() *kudos.Context {
 	c := &kudos.Context{}
 	c.Logger = log.NewLogger()
 
-	// If we're in debug mode, leave
+	// If built in debug mode, leave
 	// debug logging on
 	if !build.DebugMode {
 		if debugFlag {
@@ -96,10 +96,10 @@ func getContext() *kudos.Context {
 		}
 	} else {
 		if verboseFlag {
-			c.Debug.Println("debug mode enabled; ignoring --verbose flag")
+			c.Debug.Println("debug build; ignoring --verbose flag")
 		}
 		if quietFlag {
-			c.Debug.Println("debug mode enabled; ignoring --quiet flag")
+			c.Debug.Println("debug build; ignoring --quiet flag")
 		}
 	}
 
