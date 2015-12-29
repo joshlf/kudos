@@ -37,7 +37,7 @@ var courseFlag string
 var globalFlags = pflag.NewFlagSet("common", pflag.ContinueOnError)
 
 // Make sure initGlobalFlags is called
-// before any inits functions are run
+// before any init functions are run
 var _ = initGlobalFlags()
 
 // Return a dummy value to enable the above line
