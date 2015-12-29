@@ -49,7 +49,7 @@ func init() {
 					ctx.Info.Printf("%v]\n", h[len(h)-1].Code)
 				}
 			}
-			return
+			exitClean()
 		case 1:
 			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
 			if err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/joshlf/kudos/lib/build"
 	"github.com/joshlf/kudos/lib/config"
@@ -77,8 +78,33 @@ func main() {
 	if build.DebugMode {
 		cmdMain.DebugFlags()
 	}
+
+	// In order to make it so that exiting the program
+	// causes defered functions to be called, exit should
+	// be called instead of os.Exit. exit panics with the
+	// given exit code, and that panic is recovered here.
+	// In the course of this panic, any functions defered
+	// on the main goroutine will execute. Then, the code
+	// will be recovered from the panic here and os.Exit
+	// will be called to exit cleanly.
+	defer func() {
+		r := recover()
+		if r != nil {
+			if p, ok := r.(panicExitCode); ok {
+				os.Exit(int(p))
+			}
+			panic(r)
+		}
+	}()
+
 	cmdMain.Execute()
 }
+
+type panicExitCode int
+
+// this should be called instead of os.Exit
+func exit(code int) { panic(panicExitCode(code)) }
+func exitClean()    { exit(0) }
 
 func getContext() *kudos.Context {
 	c := &kudos.Context{}
