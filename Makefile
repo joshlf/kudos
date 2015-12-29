@@ -1,4 +1,4 @@
-LDFLAGS="-X github.com/synful/kudos/lib/build.Version $(shell git rev-parse HEAD)"
+LDFLAGS="-X github.com/joshlf/kudos/lib/build.Version=$(shell git rev-parse HEAD)"
 
 build: deps
 	go build -ldflags $(LDFLAGS) -o bin/kudos -a cmd/*.go
