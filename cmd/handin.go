@@ -27,71 +27,71 @@ func init() {
 		var handinFile string
 		switch len(args) {
 		case 0:
-			log.Info.Printf("Usage: %v\n\n", cmd.Use)
+			ctx.Info.Printf("Usage: %v\n\n", cmd.Use)
 			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
 			if err != nil {
-				log.Error.Println("could not read all assignments; aborting")
+				ctx.Error.Println("could not read all assignments; aborting")
 				dev.Fail()
 			}
-			log.Info.Println("Available handins:")
+			ctx.Info.Println("Available handins:")
 			for _, a := range asgns {
 				if len(a.Handins) == 1 {
-					log.Info.Printf("  %v\n", a.Code)
+					ctx.Info.Printf("  %v\n", a.Code)
 				} else {
 					// TODO(joshlf): maybe change the output
 					// format? This works for now, but we
 					// could think of something better.
-					log.Info.Printf("  %v [", a.Code)
+					ctx.Info.Printf("  %v [", a.Code)
 					h := a.Handins
 					for _, hh := range h[:len(h)-1] {
-						log.Info.Printf("%v | ", hh.Code)
+						ctx.Info.Printf("%v | ", hh.Code)
 					}
-					log.Info.Printf("%v]\n", h[len(h)-1].Code)
+					ctx.Info.Printf("%v]\n", h[len(h)-1].Code)
 				}
 			}
 			return
 		case 1:
 			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
 			if err != nil {
-				log.Error.Println("could not read all assignments; aborting")
+				ctx.Error.Println("could not read all assignments; aborting")
 				dev.Fail()
 			}
 			a, ok := kudos.FindAssignmentByCode(asgns, args[0])
 			if !ok {
-				log.Error.Printf("no such assignment: %v\n", args[0])
+				ctx.Error.Printf("no such assignment: %v\n", args[0])
 				dev.Fail()
 			}
 			if len(a.Handins) > 1 {
 				// TODO(joshlf): print more useful message,
 				// such as available handins?
-				log.Error.Printf("assignment has multiple handins; please specify one\n")
+				ctx.Error.Printf("assignment has multiple handins; please specify one\n")
 				dev.Fail()
 			}
 			u, err := user.Current()
 			if err != nil {
-				log.Error.Printf("could not get current user: %v\n", err)
+				ctx.Error.Printf("could not get current user: %v\n", err)
 				dev.Fail()
 			}
 			handinFile = ctx.UserAssignmentHandinFile(args[0], u.Uid)
 		case 2:
 			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
 			if err != nil {
-				log.Error.Println("could not read all assignments; aborting")
+				ctx.Error.Println("could not read all assignments; aborting")
 				dev.Fail()
 			}
 			a, ok := kudos.FindAssignmentByCode(asgns, args[0])
 			if !ok {
-				log.Error.Printf("no such assignment: %v\n", args[0])
+				ctx.Error.Printf("no such assignment: %v\n", args[0])
 				dev.Fail()
 			}
 			_, ok = a.FindHandinByCode(args[1])
 			if !ok {
-				log.Error.Printf("no such handin: %v\n", args[1])
+				ctx.Error.Printf("no such handin: %v\n", args[1])
 				dev.Fail()
 			}
 			u, err := user.Current()
 			if err != nil {
-				log.Error.Printf("could not get current user: %v\n", err)
+				ctx.Error.Printf("could not get current user: %v\n", err)
 				dev.Fail()
 			}
 			handinFile = ctx.UserHandinHandinFile(args[0], args[1], u.Uid)
@@ -103,8 +103,9 @@ func init() {
 		/*
 			Perform handin
 		*/
-		ctx.Info.Println("Handing in current directory...")
-		err := handin.PerformFaclHandin(handinFile)
+		ctx.Info.Println("Handing in the following files:")
+		printFiles := ctx.Logger.GetLevel() <= log.Info
+		err := handin.PerformFaclHandin(handinFile, printFiles)
 		if err != nil {
 			ctx.Error.Printf("could not hand in: %v\n", err)
 			dev.Fail()

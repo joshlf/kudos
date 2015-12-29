@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/joshlf/kudos/lib/dev"
 	"github.com/joshlf/kudos/lib/kudos"
-	"github.com/joshlf/kudos/lib/log"
 	"github.com/spf13/cobra"
 )
 
@@ -24,10 +23,10 @@ func init() {
 		ctx.Verbose.Printf("using course %v and course path %v\n", ctx.Course.Code, ctx.CourseRoot())
 		_, err := kudos.ParseAllAssignmentFiles(ctx)
 		if err != nil {
-			log.Error.Println("configuration failed to validate")
+			ctx.Error.Println("configuration failed to validate")
 			dev.Fail()
 		}
-		log.Verbose.Println("configuration validated")
+		ctx.Verbose.Println("configuration validated")
 	}
 	cmdValidate.Run = f
 	addAllGlobalFlagsTo(cmdValidate.Flags())
