@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/synful/kudos/lib/build"
+	"github.com/joshlf/kudos/lib/build"
 )
 
 func Fail() {
