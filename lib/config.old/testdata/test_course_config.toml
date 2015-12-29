@@ -1,6 +1,0 @@
-code = "cs101"
-name = "CS 101"
-ta_group = "cs101ta"
-student_group = "cs101student"
-description = "CS 101 is an introductory course in CS."
-handin_method = "facl"
