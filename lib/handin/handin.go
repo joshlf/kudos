@@ -14,15 +14,34 @@ import (
 
 // PerformFaclHandin performs a handin of the current
 // directory, writing a tar'd and gzip'd version of
-// it to target.
-func PerformFaclHandin(target string) (err error) {
+// it to target. If verbose is true, the "-v" flag
+// will be passed to tar, causing it to be verbose.
+// Note that this output will be given on tar's stderr,
+// which means that its stderr will be piped to this
+// process' stdout. If actual errors are encountered,
+// this will cause error messages to be printed to
+// stdout.
+func PerformFaclHandin(target string, verbose bool) (err error) {
 	f, err := os.OpenFile(target, os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	cmd := exec.Command("tar", "-c", ".")
+	// TODO(joshlf): Figure out a way of logging individual
+	// files to stdout without this hack that also redirects
+	// any error messages (ideally, we should be able to
+	// redirect stderr to stderr and stdout to stdout). In
+	// order to do this, we'll need to write to an actual file
+	// (maybe a Unix pipe?).
+	flag := "-c"
+	if verbose {
+		flag = "-cv"
+	}
+	cmd := exec.Command("tar", flag, ".")
+	if verbose {
+		cmd.Stderr = os.Stdout
+	}
 	gzw := gzip.NewWriter(f)
 	defer gzw.Close()
 	cmd.Stdout = gzw
@@ -146,7 +165,7 @@ func InitFaclHandin(dir string, uids []string) (err error) {
 		a := append(
 			acl.FromUnix(perm.Parse("rwxrwx---")),
 			acl.Entry{acl.TagUser, uid, perm.ParseSingle("r-x")},
-			acl.Entry{acl.TagMask, "", perm.ParseSingle("r-x")},
+			acl.Entry{acl.TagMask, "", perm.ParseSingle("rwx")},
 		)
 		err = acl.Set(path, a)
 		if err != nil {
@@ -167,7 +186,7 @@ func InitFaclHandin(dir string, uids []string) (err error) {
 		a = append(
 			acl.FromUnix(perm.Parse("r--r-----")),
 			acl.Entry{acl.TagUser, uid, perm.ParseSingle("-w-")},
-			acl.Entry{acl.TagMask, "", perm.ParseSingle("-w-")},
+			acl.Entry{acl.TagMask, "", perm.ParseSingle("rw-")},
 		)
 		err = acl.Set(filepath, a)
 		if err != nil {

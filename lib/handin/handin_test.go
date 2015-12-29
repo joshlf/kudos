@@ -56,7 +56,7 @@ func TestFaclHandin(t *testing.T) {
 		{acl.TagUserObj, "", perm.ParseSingle("rwx")},
 		{acl.TagUser, usr.Uid, perm.ParseSingle("r-x")},
 		{acl.TagGroupObj, "", perm.ParseSingle("rwx")},
-		{acl.TagMask, "", perm.ParseSingle("r-x")},
+		{acl.TagMask, "", perm.ParseSingle("rwx")},
 		{acl.TagOther, "", 0},
 	}
 	if !reflect.DeepEqual(a, expect) {
@@ -69,7 +69,7 @@ func TestFaclHandin(t *testing.T) {
 		{acl.TagUserObj, "", os.FileMode(perm.Read)},
 		{acl.TagUser, usr.Uid, os.FileMode(perm.Write)},
 		{acl.TagGroupObj, "", os.FileMode(perm.Read)},
-		{acl.TagMask, "", os.FileMode(perm.Write)},
+		{acl.TagMask, "", perm.ParseSingle("rw-")},
 		{acl.TagOther, "", 0},
 	}
 	if !reflect.DeepEqual(a, expect) {
@@ -101,7 +101,7 @@ func TestFaclHandin(t *testing.T) {
 	testutil.Must(t, err)
 	testutil.Must(t, os.Chdir(handinPath))
 	defer os.Chdir(pwd)
-	err = PerformFaclHandin(targetFilePath)
+	err = PerformFaclHandin(targetFilePath, false)
 	testutil.Must(t, err)
 
 	/*
