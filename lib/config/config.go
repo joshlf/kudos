@@ -15,6 +15,7 @@ const (
 	HandinFileName       = "handin.tgz"
 	AssignmentDirName    = "assignments"
 
+	DBDirName      = "db"
 	DBFileName     = "db"
 	DBTempFileName = "db.tmp"
 	DBLockFileName = "lock"
