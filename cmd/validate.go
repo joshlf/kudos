@@ -1,9 +1,8 @@
 package main
 
 import (
-	"os"
-
-	"github.com/joshlf/kudos/lib/config"
+	"github.com/joshlf/kudos/lib/dev"
+	"github.com/joshlf/kudos/lib/kudos"
 	"github.com/joshlf/kudos/lib/log"
 	"github.com/spf13/cobra"
 )
@@ -20,14 +19,13 @@ configuration makes sense.`,
 
 func init() {
 	f := func(cmd *cobra.Command, args []string) {
-		common()
-		requireCourse()
-		log.Verbose.Printf("using course %v and course path %v\n", config.Config.Course, config.Config.CoursePath)
-		_, err := config.ReadCourseConfig(config.Config.Course, config.Config.CoursePath)
+		ctx := getContext()
+		addCourseConfig(ctx)
+		ctx.Verbose.Printf("using course %v and course path %v\n", ctx.Course.Code, ctx.CourseRoot())
+		_, err := kudos.ParseAllAssignmentFiles(ctx)
 		if err != nil {
-			log.Error.Printf("%v\n", err)
 			log.Error.Println("configuration failed to validate")
-			os.Exit(1)
+			dev.Fail()
 		}
 		log.Verbose.Println("configuration validated")
 	}

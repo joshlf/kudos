@@ -6,6 +6,7 @@ import (
 	"github.com/joshlf/kudos/lib/build"
 	"github.com/joshlf/kudos/lib/config"
 	"github.com/joshlf/kudos/lib/dev"
+	"github.com/joshlf/kudos/lib/kudos"
 	"github.com/joshlf/kudos/lib/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -79,48 +80,73 @@ func main() {
 	cmdMain.Execute()
 }
 
-func common() {
+func getContext() *kudos.Context {
+	c := &kudos.Context{}
+	c.Logger = log.NewLogger()
+
 	// If we're in debug mode, leave
 	// debug logging on
 	if !build.DebugMode {
 		if debugFlag {
-			log.SetLoggingLevel(log.Debug)
+			c.SetLevel(log.Debug)
 		} else if verboseFlag {
-			log.SetLoggingLevel(log.Verbose)
+			c.SetLevel(log.Verbose)
 		} else if quietFlag {
-			log.SetLoggingLevel(log.Warn)
+			c.SetLevel(log.Warn)
 		}
 	} else {
 		if verboseFlag {
-			log.Debug.Println("debug mode enabled; ignoring --verbose flag")
+			c.Debug.Println("debug mode enabled; ignoring --verbose flag")
 		}
 		if quietFlag {
-			log.Debug.Println("debug mode enabled; ignoring --quiet flag")
+			c.Debug.Println("debug mode enabled; ignoring --quiet flag")
 		}
 	}
 
-	err := config.InitConfig(globalFlags.Lookup("config"), globalFlags.Lookup("course"))
-	if err != nil {
-		log.Error.Printf("could not initialize configuration: %v\n", err)
-		dev.Fail()
-	}
+	return c
 }
 
-func requireCourse() {
-	if !config.Config.CourseSet {
-		log.Error.Printf("no course provided; please speficy one using the --course flag or the %v%v environment variable\n", config.EnvPrefix, config.CourseEnvVar)
+func addGlobalConfig(c *kudos.Context) {
+	gcPath := config.DefaultGlobalConfigFile
+	if globalFlags.Lookup("config").Changed {
+		gcPath = configFlag
+	}
+	gc, err := kudos.ParseGlobalConfigFile(gcPath)
+	if err != nil {
+		c.Error.Printf("could not read global config: %v\n", err)
 		dev.Fail()
 	}
+	c.GlobalConfig = gc
 }
 
-// Implies requireCourse()
-func requireCourseConfig() config.Course {
-	requireCourse()
-	conf, err := config.ReadCourseConfig(config.Config.Course, config.Config.CoursePath)
-	if err != nil {
-		log.Error.Printf("could not read course config: %v\n", err)
+// implies addGlobalConfig(c)
+func addCourse(c *kudos.Context) {
+	addGlobalConfig(c)
+	if !globalFlags.Lookup("course").Changed {
+		c.Error.Println("no course provided; please specify one using the --course flag")
 		dev.Fail()
-		panic("unreachable")
 	}
-	return conf
+	code := courseFlag
+	if err := kudos.ValidateCode(code); err != nil {
+		c.Error.Printf("bad course code: %v\n", err)
+		dev.Fail()
+	}
+	// since it was validated, code != ""
+	// (which means we can safely assign
+	// it to c.CourseCode, which requires
+	// that if it is set, it is not "")
+	c.CourseCode = code
+}
+
+// implies addCourse(c)
+func addCourseConfig(c *kudos.Context) {
+	addCourse(c)
+
+	root := c.CourseRoot()
+	course, err := kudos.ParseCourseFileValidateRoot(root)
+	if err != nil {
+		c.Error.Printf("could not read course config: %v\n", err)
+		dev.Fail()
+	}
+	c.Course = course
 }

@@ -32,10 +32,10 @@ func printConstants() {
 		"lib/build.DevMode":                  build.DevMode,
 		"lib/build.Root":                     build.Root,
 		"lib/config.DefaultGlobalConfigFile": config.DefaultGlobalConfigFile,
-		"lib/config.EnvPrefix":               config.EnvPrefix,
-		"lib/config.CourseEnvVar":            config.CourseEnvVar,
-		"lib/config.FaclMethod":              config.FaclMethod,
-		"lib/config.SetgidMethod":            config.SetgidMethod,
+		"lib/config.KudosDirName":            config.KudosDirName,
+		"lib/config.CourseConfigFileName":    config.CourseConfigFileName,
+		"lib/config.HandinDirName":           config.HandinDirName,
+		"lib/config.AssignmentDirName":       config.AssignmentDirName,
 	}
 	keys := make([]string, 0)
 	for k := range consts {

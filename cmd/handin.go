@@ -1,11 +1,12 @@
 package main
 
 import (
-	"os"
+	"os/user"
 
-	"github.com/joshlf/kudos/lib/config"
+	"github.com/joshlf/kudos/lib/dev"
+	"github.com/joshlf/kudos/lib/handin"
+	"github.com/joshlf/kudos/lib/kudos"
 	"github.com/joshlf/kudos/lib/log"
-	"github.com/joshlf/kudos/lib/user"
 	"github.com/spf13/cobra"
 )
 
@@ -20,79 +21,95 @@ var cmdHandin = &cobra.Command{
 
 func init() {
 	f := func(cmd *cobra.Command, args []string) {
-		common()
-		course := requireCourseConfig()
+		ctx := getContext()
+		addCourseConfig(ctx)
+
+		var handinFile string
 		switch len(args) {
 		case 0:
 			log.Info.Printf("Usage: %v\n\n", cmd.Use)
-			asgns, err := config.ReadAllAssignments(course)
+			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
 			if err != nil {
-				log.Error.Printf("could not read assignments: %v\n", err)
-				os.Exit(1)
+				log.Error.Println("could not read all assignments; aborting")
+				dev.Fail()
 			}
 			log.Info.Println("Available handins:")
 			for _, a := range asgns {
-				if !a.HasMultipleHandins() {
-					log.Info.Printf("  %v\n", a.Code())
+				if len(a.Handins) == 1 {
+					log.Info.Printf("  %v\n", a.Code)
 				} else {
 					// TODO(joshlf): maybe change the output
 					// format? This works for now, but we
 					// could think of something better.
-					log.Info.Printf("  %v [", a.Code())
-					h := a.Handins()
+					log.Info.Printf("  %v [", a.Code)
+					h := a.Handins
 					for _, hh := range h[:len(h)-1] {
 						log.Info.Printf("%v | ", hh.Code)
 					}
 					log.Info.Printf("%v]\n", h[len(h)-1].Code)
 				}
 			}
+			return
 		case 1:
-			asgns, err := config.ReadAllAssignments(course)
+			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
 			if err != nil {
-				log.Error.Printf("could not read assignments: %v\n", err)
-				os.Exit(1)
+				log.Error.Println("could not read all assignments; aborting")
+				dev.Fail()
 			}
-			a, ok := config.AssignmentByCode(asgns, args[0])
+			a, ok := kudos.FindAssignmentByCode(asgns, args[0])
 			if !ok {
 				log.Error.Printf("no such assignment: %v\n", args[0])
-				os.Exit(1)
+				dev.Fail()
 			}
-			if a.HasMultipleHandins() {
+			if len(a.Handins) > 1 {
 				// TODO(joshlf): print more useful message,
 				// such as available handins?
 				log.Error.Printf("assignment has multiple handins; please specify one\n")
-				os.Exit(1)
+				dev.Fail()
 			}
-		case 2:
-			asgns, err := config.ReadAllAssignments(course)
+			u, err := user.Current()
 			if err != nil {
-				log.Error.Printf("could not read assignments: %v\n", err)
-				os.Exit(1)
+				log.Error.Printf("could not get current user: %v\n", err)
+				dev.Fail()
 			}
-			a, ok := config.AssignmentByCode(asgns, args[0])
+			handinFile = ctx.UserAssignmentHandinFile(args[0], u.Uid)
+		case 2:
+			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
+			if err != nil {
+				log.Error.Println("could not read all assignments; aborting")
+				dev.Fail()
+			}
+			a, ok := kudos.FindAssignmentByCode(asgns, args[0])
 			if !ok {
 				log.Error.Printf("no such assignment: %v\n", args[0])
-				os.Exit(1)
+				dev.Fail()
 			}
-			handins := a.Handins()
-			h, ok := config.HandinByCode(handins, args[1])
+			_, ok = a.FindHandinByCode(args[1])
 			if !ok {
 				log.Error.Printf("no such handin: %v\n", args[1])
-				os.Exit(1)
+				dev.Fail()
 			}
-			// TODO(joshlf): temporary to suppress compiler errors
-			_ = h
+			u, err := user.Current()
+			if err != nil {
+				log.Error.Printf("could not get current user: %v\n", err)
+				dev.Fail()
+			}
+			handinFile = ctx.UserHandinHandinFile(args[0], args[1], u.Uid)
 		default:
 			cmd.Help()
+			dev.Fail()
 		}
 
-		u, err := user.Current()
+		/*
+			Perform handin
+		*/
+		ctx.Info.Println("Handing in current directory...")
+		err := handin.PerformFaclHandin(handinFile)
 		if err != nil {
-			log.Error.Printf("could not get current user: %v\n", err)
-			os.Exit(1)
+			ctx.Error.Printf("could not hand in: %v\n", err)
+			dev.Fail()
 		}
-		// TODO(joshlf): temporary to suppress compiler errors
-		_ = u
+		ctx.Info.Println("Handin successful.")
 	}
 	cmdHandin.Run = f
 	addAllGlobalFlagsTo(cmdHandin.Flags())

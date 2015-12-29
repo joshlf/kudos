@@ -1,9 +1,8 @@
 package main
 
 import (
-	"os"
-
-	"github.com/joshlf/kudos/lib/config"
+	"github.com/joshlf/kudos/lib/dev"
+	"github.com/joshlf/kudos/lib/kudos"
 	"github.com/joshlf/kudos/lib/log"
 	"github.com/spf13/cobra"
 )
@@ -15,12 +14,13 @@ var cmdInit = &cobra.Command{
 
 func init() {
 	f := func(cmd *cobra.Command, args []string) {
-		common()
-		requireCourse()
-		err := config.InitCourse(config.Config.Course, config.Config.CoursePath, true)
+		ctx := getContext()
+		addCourse(ctx)
+
+		err := kudos.InitCourse(ctx)
 		if err != nil {
-			log.Error.Printf("init: %v\n", err)
-			os.Exit(1)
+			log.Error.Printf("initialization failed: %v\n", err)
+			dev.Fail()
 		}
 	}
 	cmdInit.Run = f
