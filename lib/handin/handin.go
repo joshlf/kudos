@@ -8,11 +8,8 @@ import (
 	"path/filepath"
 
 	acl "github.com/joshlf/go-acl"
+	"github.com/joshlf/kudos/lib/config"
 	"github.com/joshlf/kudos/lib/perm"
-)
-
-const (
-	handinFileName = "handin.tgz"
 )
 
 // PerformFaclHandin performs a handin of the current
@@ -133,7 +130,7 @@ func InitFaclHandin(dir string, uids []string) (err error) {
 
 	for _, uid := range uids {
 		path := filepath.Join(dir, uid)
-		filepath := filepath.Join(path, handinFileName)
+		filepath := filepath.Join(path, config.HandinFileName)
 
 		// make sure to use global err
 		// (so defered func can check it)

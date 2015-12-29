@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	acl "github.com/joshlf/go-acl"
+	"github.com/joshlf/kudos/lib/config"
 	"github.com/joshlf/kudos/lib/perm"
 	"github.com/joshlf/kudos/lib/testutil"
 )
@@ -45,7 +46,7 @@ func TestFaclHandin(t *testing.T) {
 	// we expect, and expect that everything should work
 	// properly in the real world as a result.
 	targetDirPath := filepath.Join(testDir, "handin", usr.Uid)
-	targetFilePath := filepath.Join(targetDirPath, handinFileName)
+	targetFilePath := filepath.Join(targetDirPath, config.HandinFileName)
 	err = InitFaclHandin(filepath.Join(testDir, "handin"), []string{usr.Uid})
 	testutil.Must(t, err)
 
