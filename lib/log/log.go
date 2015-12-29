@@ -89,6 +89,14 @@ func (l *Logger) SetLevel(lvl Level) {
 	l.level = lvl
 }
 
+// GetLevel returns l's current logging level.
+func (l *Logger) GetLevel() Level {
+	l.m.Lock()
+	defer l.m.Unlock()
+	l.checkInit()
+	return l.level
+}
+
 func (l *Logger) checkInit() {
 	if !l.init {
 		panic("lib/log: uninitialized Logger")
