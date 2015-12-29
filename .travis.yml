@@ -1,12 +1,11 @@
 language: go
 
 go:
- - 1.4
+ - 1.5
 
 install:
  - go get github.com/spf13/cobra
  - go get github.com/spf13/viper
- - go get github.com/BurntSushi/toml
  - go get github.com/spf13/pflag
  - go get github.com/joshlf/go-acl 
 
