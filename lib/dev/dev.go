@@ -4,18 +4,11 @@
 // which is used by multiple other packages.
 package dev
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/joshlf/kudos/lib/build"
-)
-
 func Fail() {
 	msg := "[dev] failing for lack of anything better to do"
-	if build.DevMode {
-		panic(msg)
-	}
-	fmt.Fprintln(os.Stderr, msg)
-	os.Exit(1)
+	// if build.DevMode {
+	panic(msg)
+	// }
+	// fmt.Fprintln(os.Stderr, msg)
+	// os.Exit(1)
 }
