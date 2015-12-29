@@ -3,13 +3,12 @@ language: go
 go:
  - 1.4
 
-sudo: required
-
 install:
  - go get github.com/spf13/cobra
  - go get github.com/spf13/viper
  - go get github.com/BurntSushi/toml
  - go get github.com/spf13/pflag
- - sudo apt-get install -y acl
+ - go get github.com/joshlf/go-acl 
 
 script: go test ./lib/... ./cmd/...
+
