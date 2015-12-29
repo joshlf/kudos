@@ -55,6 +55,10 @@ func init() {
 		// TODO(joshlf)
 		var uids []string = []string{"1000"}
 
+		// If there is a single handin, initialize the handin
+		// directory directly. Otherwise, create the parent
+		// directory and initialize each handin directory
+		// one at a time.
 		if len(asgn.Handins) == 1 {
 			dir := ctx.AssignmentHandinDir(asgn.Code)
 			err := handin.InitFaclHandin(dir, uids)
