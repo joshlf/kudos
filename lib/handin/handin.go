@@ -16,40 +16,17 @@ import (
 // directory, writing a tar'd and gzip'd version of
 // it to target. If verbose is true, the "-v" flag
 // will be passed to tar, causing it to be verbose.
-// Note that this output will be given on tar's stderr,
-// which means that its stderr will be piped to this
-// process' stdout. If actual errors are encountered,
-// this will cause error messages to be printed to
-// stdout.
 func PerformFaclHandin(target string, verbose bool) (err error) {
-	f, err := os.OpenFile(target, os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	// TODO(joshlf): Figure out a way of logging individual
-	// files to stdout without this hack that also redirects
-	// any error messages (ideally, we should be able to
-	// redirect stderr to stderr and stdout to stdout). In
-	// order to do this, we'll need to write to an actual file
-	// (maybe a Unix pipe?).
-	flag := "-c"
+	// just in case, since we're passing it to a subcommand
+	target = filepath.Clean(target)
+	flags := "-czf"
 	if verbose {
-		flag = "-cv"
+		flags = "-cvzf"
 	}
-	cmd := exec.Command("tar", flag, ".")
-	if verbose {
-		cmd.Stderr = os.Stdout
-	}
-	gzw := gzip.NewWriter(f)
-	defer gzw.Close()
-	cmd.Stdout = gzw
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	cmd := exec.Command("tar", flags, target, ".")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
 }
 
 // ExtractHandin extracts the given handin (which must
