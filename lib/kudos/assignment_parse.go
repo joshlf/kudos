@@ -170,6 +170,11 @@ func ParseAssignmentFile(path string) (*Assignment, error) {
 	return a, nil
 }
 
+func ParseAssignment(ctx *Context, code string) (*Assignment, error) {
+	path := filepath.Join(ctx.CourseAssignmentDir(), code)
+	return ParseAssignmentFile(path)
+}
+
 func parseAssignment(r io.Reader) (*Assignment, error) {
 	d := json.NewDecoder(r)
 	var asgn parseableAssignment

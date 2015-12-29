@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/joshlf/kudos/lib/config"
+	"github.com/joshlf/kudos/lib/db"
 	"github.com/joshlf/kudos/lib/kudos/internal"
 	"github.com/joshlf/kudos/lib/perm"
 )
@@ -36,6 +37,18 @@ func InitCourse(ctx *Context) (err error) {
 
 	ctx.Verbose.Printf("creating %v\n", ctx.CourseHandinDir())
 	err = os.Mkdir(ctx.CourseHandinDir(), dirMode)
+	if err != nil {
+		return
+	}
+
+	ctx.Verbose.Printf("creating %v\n", ctx.CourseDBDir())
+	err = os.Mkdir(ctx.CourseDBDir(), dirMode)
+	if err != nil {
+		return
+	}
+
+	ctx.Verbose.Println("initializing database")
+	err = db.Init(NewDB(), ctx.CourseDBDir())
 	if err != nil {
 		return
 	}
