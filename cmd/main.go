@@ -16,7 +16,7 @@ import (
 var cmdMain = &cobra.Command{
 	Use:   "kudos",
 	Short: "kudos is a simple grading system",
-	Long: `kudos is a simple grading system made out of love and frustration by m, ezr,
+	Long: `kudos is a simple grading system made out of love and frustration by ezr
 and jliebowf`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
