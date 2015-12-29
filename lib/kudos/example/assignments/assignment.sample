@@ -1,0 +1,41 @@
+{
+	"code": "assign01",
+	"name": "Assignment 01",
+	"due": "Jul 4, 2015 at 12:00am (EST)",
+
+	"handins": [
+					{
+						"code": "first",
+						"due": "Jul 4, 2015 at 12:00am (EST)",
+						"problems": ["prob1"]
+					},
+					{
+						"code": "second",
+						"due": "Jul 5, 2015 at 12:00am (EST)",
+						"problems": ["prob2"]
+					}
+				],
+
+	"problems": [
+					{
+						"code": "prob1",
+						"name": "Problem 1",
+						"points": 50
+					},
+					{
+						"code": "prob2",
+						"name": "Problem 2",
+						"points": 50,
+						"subproblems": [
+											{
+												"code": "a",
+												"points": 25
+											},
+											{
+												"code": "b",
+												"points": 25
+											}
+										]
+					}
+				]
+}

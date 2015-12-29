@@ -1,0 +1,27 @@
+{
+	"code": "sample_assignment",
+	"handins": [{
+					"due": "Jan 2, 2006 at 3:04pm (MST)",
+					"problems": ["p1", "p4"]
+				}],
+	"problems": [
+		{
+			"code": "p1",
+			"points": 50,
+			"subproblems": [
+								{
+									"code": "p1_1",
+									"points": 25
+								},
+								{
+									"code": "p1_2",
+									"points": 25
+								}
+							]
+		},
+		{
+			"code": "p4",
+			"points": 50
+		}
+	]
+}
