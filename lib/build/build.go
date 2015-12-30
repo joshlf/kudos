@@ -12,6 +12,10 @@ func DebugDo(f func()) {
 	}
 }
 
-// Version is set by linking from the build script
+var (
+	// Version is set by linking from the build script
+	Version string
 
-var Version string
+	// Commit is set by linking from the build script
+	Commit string
+)
