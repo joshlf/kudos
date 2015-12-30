@@ -84,6 +84,14 @@ func (c *Context) CourseAssignmentDir() string {
 	return filepath.Join(c.CourseKudosDir(), config.AssignmentDirName)
 }
 
+func (c *Context) CourseHooksDir() string {
+	return filepath.Join(c.CourseKudosDir(), config.HooksDirName)
+}
+
+func (c *Context) PreHandinHookFile() string {
+	return filepath.Join(c.CourseHooksDir(), config.PreHandinHookFileName)
+}
+
 func (c *Context) CourseDBDir() string {
 	return filepath.Join(c.CourseKudosDir(), config.DBDirName)
 }

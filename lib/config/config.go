@@ -14,6 +14,9 @@ const (
 	HandinDirName        = "handin"
 	HandinFileName       = "handin.tgz"
 	AssignmentDirName    = "assignments"
+	HooksDirName         = "hooks"
+
+	PreHandinHookFileName = "pre-handin"
 
 	DBDirName      = "db"
 	DBFileName     = "db"

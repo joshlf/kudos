@@ -31,29 +31,31 @@ func InitCourse(ctx *Context) (err error) {
 		return fmt.Errorf("course root exists but is not directory")
 	}
 
-	ctx.Verbose.Printf("creating %v\n", ctx.CourseKudosDir())
-	err = os.Mkdir(ctx.CourseKudosDir(), dirMode)
+	logAndMkdir := func(path string) error {
+		ctx.Verbose.Printf("creating %v\n", path)
+		return os.Mkdir(path, dirMode)
+	}
+
+	err = logAndMkdir(ctx.CourseKudosDir())
 	if err != nil {
 		if os.IsExist(err) {
 			return fmt.Errorf("course already initialized (%v already exists)", ctx.CourseKudosDir())
 		}
 		return err
 	}
-
-	ctx.Verbose.Printf("creating %v\n", ctx.CourseAssignmentDir())
-	err = os.Mkdir(ctx.CourseAssignmentDir(), dirMode)
+	err = logAndMkdir(ctx.CourseAssignmentDir())
 	if err != nil {
 		return
 	}
-
-	ctx.Verbose.Printf("creating %v\n", ctx.CourseHandinDir())
-	err = os.Mkdir(ctx.CourseHandinDir(), dirMode)
+	err = logAndMkdir(ctx.CourseHandinDir())
 	if err != nil {
 		return
 	}
-
-	ctx.Verbose.Printf("creating %v\n", ctx.CourseDBDir())
-	err = os.Mkdir(ctx.CourseDBDir(), dirMode)
+	err = logAndMkdir(ctx.CourseHooksDir())
+	if err != nil {
+		return
+	}
+	err = logAndMkdir(ctx.CourseDBDir())
 	if err != nil {
 		return
 	}

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"os/exec"
 	"os/user"
 
 	"github.com/joshlf/kudos/lib/dev"
@@ -103,9 +105,40 @@ func init() {
 		/*
 			Perform handin
 		*/
+
+		hook := ctx.PreHandinHookFile()
+		doHook := true
+		_, err := os.Stat(hook)
+		if err != nil {
+			if os.IsNotExist(err) {
+				doHook = false
+			} else {
+				ctx.Error.Printf("could not stat pre-handin hook: %v\n", err)
+				dev.Fail()
+			}
+		}
+
+		c := exec.Command(hook)
+		c.Stderr = os.Stderr
+		c.Stdout = os.Stdout
+
+		// TODO(joshlf): Set environment variables
+
+		if doHook {
+			err = c.Run()
+			if err != nil {
+				if _, ok := err.(*exec.ExitError); ok {
+					ctx.Warn.Println("pre-handin hook exited with error code; aborting")
+					dev.Fail()
+				}
+				ctx.Error.Printf("could not run pre-handin hook: %v\n", err)
+				dev.Fail()
+			}
+		}
+
 		ctx.Info.Println("Handing in the following files:")
 		printFiles := ctx.Logger.GetLevel() <= log.Info
-		err := handin.PerformFaclHandin(handinFile, printFiles)
+		err = handin.PerformFaclHandin(handinFile, printFiles)
 		if err != nil {
 			ctx.Error.Printf("could not hand in: %v\n", err)
 			dev.Fail()
