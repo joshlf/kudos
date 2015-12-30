@@ -38,6 +38,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/joshlf/kudos/lib/build"
 	"github.com/joshlf/kudos/lib/config"
 	"github.com/joshlf/kudos/lib/lockfile"
 )
@@ -46,6 +47,24 @@ var (
 	ErrNeedAbsPath = errors.New("need absolute path")
 	ErrLockFailed  = errors.New("could not acquire lock")
 )
+
+type db struct {
+	Version string
+	Commit  string
+	DB      marshaler
+}
+
+type marshaler struct {
+	v interface{}
+}
+
+func (m marshaler) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.v)
+}
+
+func (m marshaler) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, m.v)
+}
 
 // Committer is a function which will take a new
 // value for the database and commit it to disk.
@@ -104,7 +123,9 @@ func Open(v interface{}, path string) (c Committer, err error) {
 	defer f.Close()
 
 	d := json.NewDecoder(f)
-	err = d.Decode(&v)
+	// we may care about the other fields later,
+	// but for now just throw them out
+	err = d.Decode(&db{DB: marshaler{v}})
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal from file: %v", err)
 	}
@@ -130,8 +151,14 @@ func Open(v interface{}, path string) (c Committer, err error) {
 			return err
 		}
 		defer f.Close()
+
+		vv := db{
+			Version: build.Version,
+			Commit:  build.Commit,
+			DB:      marshaler{v},
+		}
 		e := json.NewEncoder(f)
-		err = e.Encode(v)
+		err = e.Encode(vv)
 		if err != nil {
 			return fmt.Errorf("marshal to file: %v", err)
 		}
@@ -172,8 +199,14 @@ func Init(v interface{}, path string) (err error) {
 		return err
 	}
 	defer f.Close()
+
+	vv := db{
+		Version: build.Version,
+		Commit:  build.Commit,
+		DB:      marshaler{v},
+	}
 	e := json.NewEncoder(f)
-	err = e.Encode(v)
+	err = e.Encode(vv)
 	if err != nil {
 		return fmt.Errorf("marshal to file: %v", err)
 	}

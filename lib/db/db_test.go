@@ -12,6 +12,8 @@ import (
 	"github.com/joshlf/kudos/lib/testutil"
 )
 
+// TODO(joshlf): Test Version and Commit fields
+
 type testDBType struct {
 	A uint64
 	B float64
@@ -149,7 +151,8 @@ func TestError(t *testing.T) {
 	testutil.Must(t, Init(db, tdir))
 	c, err = Open(&db, tdir)
 	testutil.Must(t, err)
-	expect = "marshal to file: json: error calling MarshalJSON for type db.marshalError: marshal error"
+	expect = "marshal to file: json: error calling MarshalJSON for type db.marshaler: " +
+		"json: error calling MarshalJSON for type db.marshalError: marshal error"
 	testutil.MustError(t, expect, c(marshalError{}))
 
 	/*
@@ -160,6 +163,7 @@ func TestError(t *testing.T) {
 
 	tdir = testutil.MustTempDir(t, "", "kudos")
 	defer os.RemoveAll(tdir)
-	expect = "marshal to file: json: error calling MarshalJSON for type db.marshalError: marshal error"
+	expect = "marshal to file: json: error calling MarshalJSON for type db.marshaler: " +
+		"json: error calling MarshalJSON for type db.marshalError: marshal error"
 	testutil.MustError(t, expect, Init(marshalError{}, tdir))
 }
