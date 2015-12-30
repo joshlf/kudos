@@ -20,6 +20,17 @@ func InitCourse(ctx *Context) (err error) {
 	dirMode := os.ModeDir | perm.Parse("rwxrwxr-x")
 	fileMode := perm.Parse("rw-rw-r--")
 
+	fi, err := os.Stat(ctx.CourseRoot())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("course root does not exist")
+		}
+		return fmt.Errorf("could not stat course root: %v", err)
+	}
+	if !fi.IsDir() {
+		return fmt.Errorf("course root exists but is not directory")
+	}
+
 	ctx.Verbose.Printf("creating %v\n", ctx.CourseKudosDir())
 	err = os.Mkdir(ctx.CourseKudosDir(), dirMode)
 	if err != nil {
