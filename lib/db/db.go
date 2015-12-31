@@ -34,6 +34,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"sync/atomic"
 	"time"
@@ -49,9 +50,17 @@ var (
 )
 
 type db struct {
+	// Kudos version and commit hash
 	Version string
 	Commit  string
-	DB      marshaler
+
+	// User's UID
+	UID string `json:",omitempty"`
+
+	// Time of save
+	Time time.Time
+
+	DB marshaler
 }
 
 type marshaler struct {
@@ -64,6 +73,19 @@ func (m marshaler) MarshalJSON() ([]byte, error) {
 
 func (m marshaler) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, m.v)
+}
+
+func getDBObj(v interface{}) db {
+	var d db
+	d.Version = build.Version
+	d.Commit = build.Commit
+	u, err := user.Current()
+	if err == nil {
+		d.UID = u.Uid
+	}
+	d.Time = time.Now()
+	d.DB = marshaler{v}
+	return d
 }
 
 // Committer is a function which will take a new
@@ -151,14 +173,8 @@ func Open(v interface{}, path string) (c Committer, err error) {
 			return err
 		}
 		defer f.Close()
-
-		vv := db{
-			Version: build.Version,
-			Commit:  build.Commit,
-			DB:      marshaler{v},
-		}
 		e := json.NewEncoder(f)
-		err = e.Encode(vv)
+		err = e.Encode(getDBObj(v))
 		if err != nil {
 			return fmt.Errorf("marshal to file: %v", err)
 		}
@@ -200,13 +216,8 @@ func Init(v interface{}, path string) (err error) {
 	}
 	defer f.Close()
 
-	vv := db{
-		Version: build.Version,
-		Commit:  build.Commit,
-		DB:      marshaler{v},
-	}
 	e := json.NewEncoder(f)
-	err = e.Encode(vv)
+	err = e.Encode(getDBObj(v))
 	if err != nil {
 		return fmt.Errorf("marshal to file: %v", err)
 	}
