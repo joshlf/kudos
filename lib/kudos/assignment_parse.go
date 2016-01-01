@@ -273,11 +273,16 @@ func validateProblemTree(problems []parseableProblem) error {
 	return nil
 }
 
+// assumes problems have already been validated
 func validateHandins(handins []parseableHandin, problems []parseableProblem) error {
 	if len(handins) == 0 {
 		return fmt.Errorf("must have at least one handin")
 	}
 
+	topLevelProblemsByCode := make(map[string]parseableProblem)
+	for _, p := range problems {
+		topLevelProblemsByCode[p.code()] = p
+	}
 	problemsByCode := make(map[string]parseableProblem)
 	var walkProblems func(problems []parseableProblem)
 	walkProblems = func(problems []parseableProblem) {
@@ -289,26 +294,8 @@ func validateHandins(handins []parseableHandin, problems []parseableProblem) err
 	walkProblems(problems)
 
 	seenHandinCodes := make(map[string]bool)
-	// this type represents where a given
-	// problem has been used before so we
-	// can give helpful error messages when
-	// problems are used by multiple handins
-	type problemUsage struct {
-		// the handin that used the problem
-		handin string
-
-		// The problem that was directly included
-		// by the handin. If problem is not equal
-		// to the map key that corresponds to it,
-		// it means that the map key is a child of
-		// the problem that was included. Otherwise,
-		// it is the problem itself. We must set
-		// this variable in either case so we can
-		// tell the difference and return precise
-		// error messages.
-		problem string
-	}
-	seenProblems := make(map[string]problemUsage)
+	// maps problems to the handin that included them
+	seenProblems := make(map[string]string)
 	for _, h := range handins {
 		switch {
 		case len(handins) == 1 && h.hasCode():
@@ -343,65 +330,29 @@ func validateHandins(handins []parseableHandin, problems []parseableProblem) err
 			if err := ValidateCode(pc); err != nil {
 				return fmt.Errorf("%v contains bad problem code %q: %v", handinErrorName, pc, err)
 			}
-			if _, ok := problemsByCode[pc]; !ok {
+
+			_, okTop := topLevelProblemsByCode[pc]
+			_, okAll := problemsByCode[pc]
+			// okAll implies okTop (topLevelProblemsByCode
+			// is a subset of problemsByCode)
+			if !okAll {
 				return fmt.Errorf("%v specifies nonexistent problem: %v", handinErrorName, pc)
 			}
-			pu, ok := seenProblems[pc]
-			if ok {
-				if pu.problem == pc {
-					return fmt.Errorf("%v includes problem %v, which was already included by handin %v", handinErrorName, pc, pu.handin)
-				}
-				return fmt.Errorf("%v includes problem %v, which was already included by handin %v as a subproblem of %v", handinErrorName, pc, pu.handin, pu.problem)
+			if !okTop {
+				return fmt.Errorf("%v specifies non-top-level problem %v", handinErrorName, pc)
 			}
-			// rename so we aren't shadowed
-			// by the argument to validate
-			topLevelPC := pc
-			var validate func(string) error
-			validate = func(pc string) error {
-				seenProblems[pc] = problemUsage{h.code(), topLevelPC}
-				subproblems := problemsByCode[pc].subproblems()
-				for _, sp := range subproblems {
-					pu, ok := seenProblems[sp.code()]
-					if ok {
-						if pu.problem == sp.code() {
-							return fmt.Errorf("%v includes problem %v via %v, which was already included by handin %v", handinErrorName, sp.code(), topLevelPC, pu.handin)
-						}
-						// If pu.problem != spc, that means that one of spc's
-						// ancestors was included by another handin. However,
-						// since we had to traverse down the tree to get here,
-						// we should have already caught that.
-						panic("internal error")
-					}
-					if err := validate(sp.code()); err != nil {
-						return err
-					}
-				}
-				return nil
+			if hc, ok := seenProblems[pc]; ok {
+				return fmt.Errorf("%v includes problem %v, which is also included by handin %v", handinErrorName, pc, hc)
 			}
-			err := validate(topLevelPC)
-			if err != nil {
-				return err
-			}
+			seenProblems[pc] = h.code()
 		}
 	}
-	// Traverse the problem tree (as opposed to using
-	// problemsByCode) so that we encounter errors
-	// in order
-	var validate func(string) error
-	validate = func(pc string) error {
-		if _, ok := seenProblems[pc]; !ok {
-			return fmt.Errorf("problem %v not in any handins", pc)
-		}
-		for _, sp := range problemsByCode[pc].subproblems() {
-			if err := validate(sp.code()); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
+
+	// Make sure to traverse problems in order so that
+	// we encounter errors in order
 	for _, p := range problems {
-		if err := validate(p.code()); err != nil {
-			return err
+		if _, ok := seenProblems[p.code()]; !ok {
+			return fmt.Errorf("problem %v not in any handins", p.code())
 		}
 	}
 	return nil

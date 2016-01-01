@@ -1,6 +1,7 @@
 package kudos
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -55,7 +56,7 @@ var assignmentErrTests = []struct {
 	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
 	[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
 	{"code":"b","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]}]}`,
-		"handin b includes problem a, which was already included by handin a"},
+		"handin b includes problem a, which is also included by handin a"},
 	{`{"code":"a","problems":[{"code":"a","points":1}],"handins":
 	[{"code":"a","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["a"]},
 	{"code":"b","due":"Jan 2, 2006 at 3:04pm (MST)","problems":["b"]}]}`,
@@ -84,10 +85,13 @@ var assignmentErrTests = []struct {
 }
 
 func TestParseAssignmentError(t *testing.T) {
-	for _, test := range assignmentErrTests {
+	for i, test := range assignmentErrTests {
 		_, err := parseAssignment(strings.NewReader(test.conf))
-		if (err == nil && test.err != "") || (err != nil && err.Error() != test.err) {
-			t.Errorf("unexpected error; want %v; got %v", test.err, err)
+		prefix := fmt.Sprintf("test case %v (`%v`)", i, test.conf)
+		if test.err == "" {
+			testutil.MustPrefix(t, prefix, err)
+		} else {
+			testutil.MustErrorPrefix(t, prefix, test.err, err)
 		}
 	}
 }
