@@ -33,6 +33,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -54,11 +55,16 @@ type db struct {
 	Version string
 	Commit  string
 
-	// User's UID
+	// User's UID; we specify omitempty
+	// because user.Current can fail
 	UID string `json:",omitempty"`
 
 	// Time of save
 	Time time.Time
+
+	// Version of the database; incremented
+	// on each modifying commit
+	DBVersion uint64
 
 	DB marshaler
 }
@@ -75,7 +81,7 @@ func (m marshaler) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, m.v)
 }
 
-func getDBObj(v interface{}) db {
+func getDBObj(v interface{}, dbversion uint64) db {
 	var d db
 	d.Version = build.Version
 	d.Commit = build.Commit
@@ -85,8 +91,11 @@ func getDBObj(v interface{}) db {
 	}
 	d.Time = time.Now()
 	d.DB = marshaler{v}
+	d.DBVersion = dbversion
 	return d
 }
+
+// TODO(joshlf): Document history functionality
 
 // Committer is a function which will take a new
 // value for the database and commit it to disk.
@@ -144,13 +153,15 @@ func Open(v interface{}, path string) (c Committer, err error) {
 	}
 	defer f.Close()
 
+	dbobj := db{DB: marshaler{v}}
 	d := json.NewDecoder(f)
 	// we may care about the other fields later,
 	// but for now just throw them out
-	err = d.Decode(&db{DB: marshaler{v}})
+	err = d.Decode(&dbobj)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal from file: %v", err)
 	}
+	dbversion := dbobj.DBVersion
 
 	var done uint32
 	c = func(v interface{}) (err error) {
@@ -167,24 +178,51 @@ func Open(v interface{}, path string) (c Committer, err error) {
 				err = fmt.Errorf("release lock: %v", err2)
 			}
 		}()
-		tmppath := filepath.Join(path, config.DBTempFileName)
-		f, err := os.Create(tmppath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		e := json.NewEncoder(f)
-		err = e.Encode(getDBObj(v))
-		if err != nil {
-			return fmt.Errorf("marshal to file: %v", err)
-		}
-		err = f.Sync()
-		if err != nil {
-			return fmt.Errorf("marshal to file: %v", err)
-		}
-		err = os.Rename(tmppath, dbpath)
-		if err != nil {
-			return fmt.Errorf("atomically update: %v", err)
+
+		if v != nil {
+			// We want all of the history files to sort
+			// alphabetically the same as chronologically.
+			// The DB version field is a uint64, and
+			// log10(2^64) = ~19.3, so 20 leading 0s is
+			// sufficient.
+			histfilename := fmt.Sprintf("%020d", dbversion)
+			histfilepath := filepath.Join(path, config.DBHistDirName, histfilename)
+			dbcontents, err := ioutil.ReadFile(dbpath)
+			if err != nil {
+				return fmt.Errorf("save history file: %v", err)
+			}
+			err = ioutil.WriteFile(histfilepath, dbcontents, 0660)
+			if err != nil {
+				return fmt.Errorf("save history file: %v", err)
+			}
+
+			tmppath := filepath.Join(path, config.DBTempFileName)
+			f, err := os.Create(tmppath)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			e := json.NewEncoder(f)
+			err = e.Encode(getDBObj(v, dbversion+1))
+			if err != nil {
+				return fmt.Errorf("marshal to file: %v", err)
+			}
+			err = f.Sync()
+			if err != nil {
+				return fmt.Errorf("marshal to file: %v", err)
+			}
+			err = os.Rename(tmppath, dbpath)
+			if err != nil {
+				// In the event that we fail to atomically
+				// update, it's OK to leave the temp file
+				// lying around because the next person
+				// will call os.Create, truncating the temp
+				// file, and it will be fine. Plus, the temp
+				// file is extra evidence lying around if
+				// somebody wants to debug why the atomic
+				// update failed.
+				return fmt.Errorf("atomically update: %v", err)
+			}
 		}
 		return nil
 	}
@@ -217,13 +255,18 @@ func Init(v interface{}, path string) (err error) {
 	defer f.Close()
 
 	e := json.NewEncoder(f)
-	err = e.Encode(getDBObj(v))
+	err = e.Encode(getDBObj(v, 0))
 	if err != nil {
 		return fmt.Errorf("marshal to file: %v", err)
 	}
 	err = f.Sync()
 	if err != nil {
 		return fmt.Errorf("marshal to file: %v", err)
+	}
+
+	err = os.Mkdir(filepath.Join(path, config.DBHistDirName), 0770)
+	if err != nil {
+		return err
 	}
 	return nil
 }

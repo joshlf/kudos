@@ -20,6 +20,7 @@ const (
 
 	DBDirName      = "db"
 	DBFileName     = "db"
+	DBHistDirName  = "hist"
 	DBTempFileName = "db.tmp"
 	DBLockFileName = "lock"
 )

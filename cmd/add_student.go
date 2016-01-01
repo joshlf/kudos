@@ -53,20 +53,34 @@ func init() {
 		}
 		defer ctx.CleanupDB()
 
+		// Don't commit changes to the database
+		// if none were actually made - muddies
+		// up the database history
+		usersAdded := false
 		for _, username := range args {
 			uid, ok := uids[username]
 			if ok {
 				ok = ctx.DB.AddStudent(uid)
 				if !ok {
 					ctx.Warn.Printf("user %v already in database\n", username)
+				} else {
+					usersAdded = true
 				}
 			}
 		}
 
-		err = ctx.CommitDB()
-		if err != nil {
-			ctx.Error.Printf("could not commit changes to database: %v\n", err)
-			dev.Fail()
+		if usersAdded {
+			err = ctx.CommitDB()
+			if err != nil {
+				ctx.Error.Printf("could not commit changes to database: %v\n", err)
+				dev.Fail()
+			}
+		} else {
+			err = ctx.CloseDB()
+			if err != nil {
+				ctx.Error.Printf("could not close database: %v\n", err)
+				dev.Fail()
+			}
 		}
 	}
 	cmdAddStudent.Run = f
