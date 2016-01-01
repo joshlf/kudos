@@ -1,6 +1,6 @@
 {
-	"code": "cs101",
-	"name": "CS 101",
-	"ta_group": "cs101tas",
-	"description": "CS 101 is an introductory course in CS."
+   "code" : "cs101",
+   "name" : "CS 101",
+   "description" : "CS 101 is an introductory course in CS.",
+   "ta_group" : "cs101tas"
 }
