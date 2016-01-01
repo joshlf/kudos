@@ -31,12 +31,25 @@ type mockError string
 
 func (m mockError) Error() string { return string(m) }
 
-// mockT implements the testingT interface
+// mockT implements the TB interface
 type mockT struct{}
 
 func (m mockT) Fatalf(format string, args ...interface{}) {
 	panic(mockError(fmt.Sprintf(format, args...)))
 }
+
+func (m mockT) Error(args ...interface{})                 { panic("unimplemented") }
+func (m mockT) Errorf(format string, args ...interface{}) { panic("unimplemented") }
+func (m mockT) Fail()                                     { panic("unimplemented") }
+func (m mockT) FailNow()                                  { panic("unimplemented") }
+func (m mockT) Failed() bool                              { panic("unimplemented") }
+func (m mockT) Fatal(args ...interface{})                 { panic("unimplemented") }
+func (m mockT) Log(args ...interface{})                   { panic("unimplemented") }
+func (m mockT) Logf(format string, args ...interface{})   { panic("unimplemented") }
+func (m mockT) Skip(args ...interface{})                  { panic("unimplemented") }
+func (m mockT) SkipNow()                                  { panic("unimplemented") }
+func (m mockT) Skipf(format string, args ...interface{})  { panic("unimplemented") }
+func (m mockT) Skipped() bool                             { panic("unimplemented") }
 
 // It doesn't matter what value
 // of mockT you use; use this
@@ -108,44 +121,40 @@ func TestSrcDir(t *testing.T) {
 }
 
 func TestMust(t *testing.T) {
-	expectSuccess(t, func() { mustImpl(mock, nil) })
-	f := func() { mustImpl(mock, errors.New("foo")) }
+	expectSuccess(t, func() { Must(mock, nil) })
+	f := func() { Must(mock, errors.New("foo")) }
 	expectFatal(t, "testutil_test.go:[0-9]+: foo", f)
 }
 
 func TestMustPrefix(t *testing.T) {
-	expectSuccess(t, func() { mustPrefix(mock, "", nil) })
-	f := func() { mustPrefix(mock, "foo", errors.New("bar")) }
+	expectSuccess(t, func() { MustPrefix(mock, "", nil) })
+	f := func() { MustPrefix(mock, "foo", errors.New("bar")) }
 	expectFatal(t, "testutil_test.go:[0-9]+: foo: bar", f)
 }
 
 func TestMustError(t *testing.T) {
 	err := fmt.Errorf("foo")
-	expectSuccess(t, func() { mustErrorImpl(mock, "foo", err) })
-	f := func() { mustErrorImpl(mock, "foo", nil) }
+	expectSuccess(t, func() { MustError(mock, "foo", err) })
+	f := func() { MustError(mock, "foo", nil) }
 	expectFatal(t, "testutil_test.go:[0-9]+: unexpected nil error", f)
 	err = fmt.Errorf("bar")
-	f = func() { mustErrorImpl(mock, "foo", err) }
+	f = func() { MustError(mock, "foo", err) }
 	expectFatal(t, "testutil_test.go:[0-9]+: unexpected error: got \"bar\"; want \"foo\"", f)
 }
 
-func TestMustTempFile(t *testing.T) {
-	var name string
-	expectSuccess(t, func() { mustTempFile(mock, "", "") })
-	defer os.Remove(name)
-
-	// Make a directory we know for a fact is empty
-	dir := MustTempDir(t, "", "")
-	defer os.RemoveAll(dir)
-	nonexistant := filepath.Join(dir, "foo")
-	re := "^testutil_test.go:[0-9]+: open " + nonexistant +
-		".*: no such file or directory$"
-	expectFatal(t, re, func() { mustTempFile(mock, nonexistant, "") })
+func TestMustErrorPrefix(t *testing.T) {
+	err := fmt.Errorf("bar")
+	expectSuccess(t, func() { MustErrorPrefix(mock, "foo", "bar", err) })
+	f := func() { MustErrorPrefix(mock, "foo", "bar", nil) }
+	expectFatal(t, "testutil_test.go:[0-9]+: foo: unexpected nil error", f)
+	err = fmt.Errorf("baz")
+	f = func() { MustErrorPrefix(mock, "foo", "bar", err) }
+	expectFatal(t, "testutil_test.go:[0-9]+: foo: unexpected error: got \"baz\"; want \"bar\"", f)
 }
 
 func TestMustTempDir(t *testing.T) {
 	var name string
-	expectSuccess(t, func() { mustTempDir(mock, "", "") })
+	expectSuccess(t, func() { MustTempDir(mock, "", "") })
 	defer os.Remove(name)
 
 	// Make a directory we know for a fact is empty
@@ -154,5 +163,22 @@ func TestMustTempDir(t *testing.T) {
 	nonexistant := filepath.Join(dir, "foo")
 	re := "^testutil_test.go:[0-9]+: mkdir " + nonexistant +
 		".*: no such file or directory$"
-	expectFatal(t, re, func() { mustTempDir(mock, nonexistant, "") })
+	expectFatal(t, re, func() { MustTempDir(mock, nonexistant, "") })
+}
+
+// relies on MustTempDir; make sure MustTempDir's
+// tests run before this (ie, are sorted alphabetically
+// before this test)
+func TestMustTempFile(t *testing.T) {
+	var name string
+	expectSuccess(t, func() { MustTempFile(mock, "", "") })
+	defer os.Remove(name)
+
+	// Make a directory we know for a fact is empty
+	dir := MustTempDir(t, "", "")
+	defer os.RemoveAll(dir)
+	nonexistant := filepath.Join(dir, "foo")
+	re := "^testutil_test.go:[0-9]+: open " + nonexistant +
+		".*: no such file or directory$"
+	expectFatal(t, re, func() { MustTempFile(mock, nonexistant, "") })
 }

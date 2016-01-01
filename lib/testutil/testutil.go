@@ -5,14 +5,29 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"testing"
 )
 
-// TODO(joshlf): Add ExpectError method that expects
-// a non-nil error with Error() matching a given string
-
-type testingT interface {
+// TB is the interface common to testing.T
+// and testing.B. It is used instead of
+// testing.TB so that it can be satisfied
+// by types other than testing.T and
+// testing.B for internal testing purposes,
+// but can be treated by users of this
+// package as equivalent to testing.TB.
+type TB interface {
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+	Fail()
+	FailNow()
+	Failed() bool
+	Fatal(args ...interface{})
 	Fatalf(format string, args ...interface{})
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
+	Skip(args ...interface{})
+	SkipNow()
+	Skipf(format string, args ...interface{})
+	Skipped() bool
 }
 
 // SrcDir attempts to figure out what source
@@ -37,11 +52,7 @@ func SrcDir() (dir string, ok bool) {
 // and logs the error to t.Fatalf if it fails.
 // The arguments dir and prefix behave as
 // documented in ioutil.TempFile.
-func MustTempFile(t *testing.T, dir, prefix string) (f *os.File) {
-	return mustTempFile(t, dir, prefix)
-}
-
-func mustTempFile(t testingT, dir, prefix string) *os.File {
+func MustTempFile(t TB, dir, prefix string) (f *os.File) {
 	f, err := ioutil.TempFile(dir, prefix)
 	must(t, err)
 	return f
@@ -51,74 +62,58 @@ func mustTempFile(t testingT, dir, prefix string) *os.File {
 // and logs the error to t.Fatalf if it fails.
 // The arguments dir and prefix behave as
 // documented in ioutil.TempDir.
-func MustTempDir(t *testing.T, dir, prefix string) (name string) {
-	return mustTempDir(t, dir, prefix)
-}
-
-func mustTempDir(t testingT, dir, prefix string) string {
+func MustTempDir(t TB, dir, prefix string) (name string) {
 	name, err := ioutil.TempDir(dir, prefix)
 	must(t, err)
 	return name
 }
 
 // Must logs to t.Fatalf if err != nil.
-func Must(t *testing.T, err error) {
-	mustImpl(t, err)
-}
-
-// can't name it just "must" because we've
-// already got one of those; can't just call
-// must directly from Must because a) we
-// need this for testing and, b) we need the
-// right call stack depth because must assumes
-// it's a certain depth from the client caller.
-func mustImpl(t testingT, err error) {
+func Must(t TB, err error) {
 	must(t, err)
 }
 
 // MustPrefix is like Must, except that if it
 // logs to t.Fatalf, the given prefix is prepended
 // to the output.
-func MustPrefix(t *testing.T, prefix string, err error) {
-	mustPrefix(t, prefix, err)
-}
-
-func mustPrefix(t testingT, prefix string, err error) {
+func MustPrefix(t TB, prefix string, err error) {
 	if err != nil {
-		nfatalf(t, 2, prefix+": %v", err)
-	}
-}
-
-func must(t testingT, err error) {
-	if err != nil {
-		nfatalf(t, 3, "%v", err)
+		nfatalf(t, 1, prefix+": %v", err)
 	}
 }
 
 // MustError logs to t.Fatalf if err == nil
 // or if err.Error() != expect.
-func MustError(t *testing.T, expect string, err error) {
-	mustErrorImpl(t, expect, err)
-}
-
-func mustErrorImpl(t testingT, expect string, err error) {
+func MustError(t TB, expect string, err error) {
 	if err == nil {
-		nfatalf(t, 2, "unexpected nil error")
+		nfatalf(t, 1, "unexpected nil error")
 	}
 	if err.Error() != expect {
-		nfatalf(t, 2, "unexpected error: got \"%v\"; want \"%v\"", err, expect)
+		nfatalf(t, 1, "unexpected error: got %q; want %q", err, expect)
 	}
 }
 
-// fatalf is equivalent to nfatalf with n = 3;
-// it should be called only by second-level functions.
-func fatalf(t testingT, format string, args ...interface{}) {
-	nfatalf(t, 4, format, args...)
+// MustErrorPrefix is like MustError, except that
+// if it logs to t.Fatalf, the given prefix is
+// prepended to the output.
+func MustErrorPrefix(t TB, prefix, expect string, err error) {
+	if err == nil {
+		nfatalf(t, 1, prefix+": unexpected nil error")
+	}
+	if err.Error() != expect {
+		nfatalf(t, 1, prefix+": unexpected error: got %q; want %q", err, expect)
+	}
+}
+
+func must(t TB, err error) {
+	if err != nil {
+		nfatalf(t, 2, "%v", err)
+	}
 }
 
 // nfatalf calls t.Fatalf, but prepends the file and
 // line number of the caller's nth ancestor.
-func nfatalf(t testingT, n int, format string, args ...interface{}) {
+func nfatalf(t TB, n int, format string, args ...interface{}) {
 	_, file, line, ok := runtime.Caller(n + 1)
 	if !ok {
 		t.Fatalf("unknown file/line: "+format, args...)
