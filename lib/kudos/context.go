@@ -64,6 +64,31 @@ func (c *Context) CleanupDB() error {
 	return nil
 }
 
+// CLeanupDBAndLogOnError calls c.CleanupDB() and
+// logs to c.Error if the returned error is not
+// nil. CleanupDBAndLogOnError is meant to be
+// called in defered functions or at program exit
+// sites so that any remaining database locks are
+// released in case of an unexpected exit. It is
+// intended to replace:
+//  err := c.CleanupDB()
+//  if err != nil {
+//      c.Error.Printf("could not close or commit changes to database: %v\n", err)
+//  }
+// or:
+//  defer func() {
+//      err := c.CleanupDB()
+//      if err != nil {
+//          c.Error.Printf("could not close or commit changes to database: %v\n", err)
+//      }
+//  }()
+func CleanupDBAndLogOnError(c *Context) {
+	err := c.CleanupDB()
+	if err != nil {
+		c.Error.Printf("could not close or commit changes to database: %v\n", err)
+	}
+}
+
 func (c *Context) CourseRoot() string {
 	return CourseCodeToPath(c.CourseCode, c.GlobalConfig)
 }
