@@ -154,6 +154,11 @@ func ParseAllAssignmentFiles(ctx *Context) ([]*Assignment, error) {
 	return asgns, reterr
 }
 
+func ParseAssignmentFileByCode(ctx *Context, code string) (*Assignment, error) {
+	dir := ctx.CourseAssignmentDir()
+	return ParseAssignmentFile(filepath.Join(dir, code))
+}
+
 func ParseAssignmentFile(path string) (*Assignment, error) {
 	f, err := os.Open(path)
 	if err != nil {
