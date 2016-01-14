@@ -75,3 +75,28 @@ func findProblemByCode(code string, problems []Problem) (Problem, bool) {
 	}
 	return Problem{}, false
 }
+
+// FindProblemPathByCode returns the list of parents
+// of the given problem (not including the problem
+// itself). The second return value is true iff the
+// problem was found.
+func (a *Assignment) FindProblemPathByCode(code string) (parents []string, ok bool) {
+	if ValidateCode(code) != nil {
+		panic("lib/kudos: FindProblemByCode: invalid code")
+	}
+
+	return findProblemPathByCode(code, a.Problems)
+}
+
+func findProblemPathByCode(code string, problems []Problem) ([]string, bool) {
+	for _, p := range problems {
+		if p.Code == code {
+			return nil, true
+		}
+		path, ok := findProblemPathByCode(code, p.Subproblems)
+		if ok {
+			return append([]string{p.Code}, path...), true
+		}
+	}
+	return nil, false
+}

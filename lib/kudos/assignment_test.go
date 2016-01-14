@@ -3,6 +3,7 @@ package kudos
 import (
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -110,6 +111,67 @@ func BenchmarkParseAssignmentFromDisk(b *testing.B) {
 		b.StopTimer()
 		if err != nil {
 			b.Fatalf("unexpected error: %v", err)
+		}
+	}
+}
+
+const findProblemPathByCodeTestAssignment = `{"code":"a","name":"a",
+	"due":"Jul 4, 2015 at 12:00am (EST)","handins":[{"code":"first",
+	"due":"Jul 4, 2015 at 12:00am (EST)","problems":["prob1"]},
+	{"code":"second","due":"Jul 5, 2015 at 12:00am (EST)","problems":
+	["prob2"]}],
+	"problems": [
+					{
+						"code": "prob1",
+						"name": "Problem 1",
+						"points": 50
+					},
+					{
+						"code": "prob2",
+						"name": "Problem 2",
+						"points": 50,
+						"subproblems": [
+										{
+										"code": "a",
+										"points": 25
+										},
+										{
+										"code": "b",
+										"points": 25
+										}
+										]
+					}
+				]
+}`
+
+var findProblemPathByCodeTestCases = []struct {
+	code string
+	path []string
+	ok   bool
+}{
+	{"prob1", []string{}, true},
+	{"prob2", []string{}, true},
+	{"a", []string{"prob2"}, true},
+	{"b", []string{"prob2"}, true},
+	{"c", []string{}, false},
+}
+
+func TestFindProblemPathByCode(t *testing.T) {
+	asgn, err := parseAssignment(strings.NewReader(findProblemPathByCodeTestAssignment))
+	testutil.Must(t, err)
+	for i, test := range findProblemPathByCodeTestCases {
+		path, ok := asgn.FindProblemPathByCode(test.code)
+		if len(path) == 0 {
+			// make reflect.DeepEqual happy
+			// (in case path is nil, which
+			// reflect.DeepEqual will consider
+			// unequal to an initialized,
+			// zero-length slice)
+			path = []string{}
+		}
+		prefix := fmt.Sprintf("test case %v (code %v)", i, test.code)
+		if ok != test.ok || !reflect.DeepEqual(path, test.path) {
+			t.Errorf("%v: got (%v, %v); want (%v, %v)", prefix, path, ok, test.path, test.ok)
 		}
 	}
 }
