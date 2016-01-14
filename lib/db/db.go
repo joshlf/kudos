@@ -167,24 +167,27 @@ func Open(v interface{}, path string) (c Committer, err error) {
 				err = fmt.Errorf("release lock: %v", err2)
 			}
 		}()
-		tmppath := filepath.Join(path, config.DBTempFileName)
-		f, err := os.Create(tmppath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		e := json.NewEncoder(f)
-		err = e.Encode(getDBObj(v))
-		if err != nil {
-			return fmt.Errorf("marshal to file: %v", err)
-		}
-		err = f.Sync()
-		if err != nil {
-			return fmt.Errorf("marshal to file: %v", err)
-		}
-		err = os.Rename(tmppath, dbpath)
-		if err != nil {
-			return fmt.Errorf("atomically update: %v", err)
+
+		if v != nil {
+			tmppath := filepath.Join(path, config.DBTempFileName)
+			f, err := os.Create(tmppath)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			e := json.NewEncoder(f)
+			err = e.Encode(getDBObj(v))
+			if err != nil {
+				return fmt.Errorf("marshal to file: %v", err)
+			}
+			err = f.Sync()
+			if err != nil {
+				return fmt.Errorf("marshal to file: %v", err)
+			}
+			err = os.Rename(tmppath, dbpath)
+			if err != nil {
+				return fmt.Errorf("atomically update: %v", err)
+			}
 		}
 		return nil
 	}
