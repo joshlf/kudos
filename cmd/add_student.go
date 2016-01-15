@@ -9,7 +9,7 @@ import (
 )
 
 var cmdAddStudent = &cobra.Command{
-	Use:   "add-student [username...]",
+	Use:   "add-student [usernames]",
 	Short: "Add students to the course",
 	// TODO(joshlf): long description
 }

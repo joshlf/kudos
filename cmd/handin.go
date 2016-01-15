@@ -17,7 +17,7 @@ var cmdHandin = &cobra.Command{
 	// mark the handin as optional in a
 	// way that is consistent with Cobra's
 	// output.
-	Use:   "handin [assignment] [handin]",
+	Use:   "handin <assignment> [<handin>]",
 	Short: "Hand in an assignment",
 }
 

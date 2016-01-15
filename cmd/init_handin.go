@@ -11,7 +11,7 @@ import (
 )
 
 var cmdInitHandin = &cobra.Command{
-	Use:   "handin [assignment]",
+	Use:   "handin <assignment>",
 	Short: "Initialize an assignment's handins",
 }
 

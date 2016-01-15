@@ -7,7 +7,7 @@ import (
 )
 
 var cmdAddAssignment = &cobra.Command{
-	Use:   "add-assignment [code]",
+	Use:   "add-assignment <code>",
 	Short: "Add an assignment to the course database",
 	// TODO(joshlf): long description
 }
@@ -22,7 +22,7 @@ func init() {
 		ctx := getContext()
 		code := args[0]
 		if err := kudos.ValidateCode(code); err != nil {
-			ctx.Error.Printf("bad assignment code: %v\n", err)
+			ctx.Error.Printf("bad assignment code %q: %v\n", code, err)
 			dev.Fail()
 		}
 		addCourseConfig(ctx)
@@ -75,6 +75,6 @@ func init() {
 	}
 	cmdAddAssignment.Run = f
 	addAllGlobalFlagsTo(cmdAddAssignment.Flags())
-	cmdAddAssignment.PersistentFlags().BoolVarP(&forceFlag, "force", "f", false, "overwrite previous version of assignment in database")
+	cmdAddAssignment.Flags().BoolVarP(&forceFlag, "force", "f", false, "overwrite previous version of assignment in database")
 	cmdMain.AddCommand(cmdAddAssignment)
 }
