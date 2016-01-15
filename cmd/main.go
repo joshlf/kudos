@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 
 	"github.com/joshlf/kudos/lib/build"
 	"github.com/joshlf/kudos/lib/config"
@@ -105,6 +106,8 @@ type panicExitCode int
 // this should be called instead of os.Exit
 func exit(code int) { panic(panicExitCode(code)) }
 func exitClean()    { exit(0) }
+func exitUsage()    { exit(1) }
+func exitLogic()    { exit(2) }
 
 func getContext() *kudos.Context {
 	c := &kudos.Context{}
@@ -175,4 +178,40 @@ func addCourseConfig(c *kudos.Context) {
 		dev.Fail()
 	}
 	c.Course = course
+}
+
+// prints a standard error and calls dev.Fail on error
+func lookupUserByUsernameOrUID(ctx *kudos.Context, u string) *user.User {
+	numeric := true
+	// consider an empty username to be non-numeric
+	if len(u) == 0 {
+		numeric = false
+	} else {
+		for _, c := range u {
+			if !(c >= '0' && c <= '9') {
+				numeric = false
+			}
+		}
+	}
+
+	// TODO(joshlf): What should we do about empty
+	// usernames? It would be weird to use quotation
+	// marks to print usernames in the general case,
+	// but it would also be weird to behave differently
+	// depending on what the username itself is
+	if numeric {
+		usr, err := user.LookupId(u)
+		if err != nil {
+			ctx.Error.Printf("could not find user with uid %v: %v\n", u, err)
+			dev.Fail()
+		}
+		return usr
+	} else {
+		usr, err := user.Lookup(u)
+		if err != nil {
+			ctx.Error.Printf("could not find user %v: %v\n", u, err)
+			dev.Fail()
+		}
+		return usr
+	}
 }
