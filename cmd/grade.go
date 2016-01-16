@@ -71,13 +71,6 @@ func init() {
 			exitLogic()
 		}
 		u := lookupStudent(ctx, student)
-		// u := lookupUserByUsernameOrUID(ctx, student)
-
-		// _, ok = ctx.DB.Students[u.Uid]
-		// if !ok {
-		// 	ctx.Error.Printf("no such student: %v\n", student)
-		// 	exitLogic()
-		// }
 
 		if deleteFlag {
 			if _, ok := ctx.DB.Grades[acode][u.usr.Uid]; !ok {
