@@ -9,7 +9,20 @@ type AssignmentGrade struct {
 	Grades map[string]ProblemGrade
 }
 
+func (a *AssignmentGrade) Total() float64 {
+	total := 0.0
+	for _, g := range a.Grades {
+		total += g.Grade
+	}
+	return total
+}
+
 type ProblemGrade struct {
 	Grade   float64
 	Comment string
+}
+
+func GradeComplete(a *Assignment, g *AssignmentGrade) bool {
+	// TODO(joshlf)
+	panic("unimplemented")
 }
