@@ -21,10 +21,16 @@ type student struct {
 
 func (s *student) String() string { return s.str }
 
-// looks up a student by either username or UID,
+// Looks up a student by either username or UID,
 // and makes sure that they are a student of the
-// course; assumes that the database has been
-// opened
+// course. Assumes that the database has been
+// opened. If an error is encountered, it is logged
+// to ctx.Error, and the process exits.
+//
+// It is assumed that the argument is obtained
+// from a user-supplied command-line argument,
+// and the exit codes used are chosen based on this
+// assumption.
 func lookupStudent(ctx *kudos.Context, u string) *student {
 	if len(u) == 0 {
 		ctx.Error.Println("bad username or uid: empty")
@@ -79,7 +85,7 @@ func lookupStudent(ctx *kudos.Context, u string) *student {
 // that this function is used for looking up
 // usernames of students in the database, and
 // the log message says this.
-func lookupUsername(ctx *kudos.Context, uid string) string {
+func lookupUsernameForUID(ctx *kudos.Context, uid string) string {
 	u, err := user.LookupId(uid)
 	if err != nil {
 		ctx.Warn.Printf("could not look up username for user with uid %v: %v\n", uid, err)
