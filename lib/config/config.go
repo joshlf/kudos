@@ -16,6 +16,8 @@ const (
 	AssignmentDirName    = "assignments"
 	HooksDirName         = "hooks"
 
+	UserConfigFileName = ".kudosconfig"
+
 	PreHandinHookFileName = "pre-handin"
 
 	DBDirName      = "db"

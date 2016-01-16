@@ -2,7 +2,9 @@ package main
 
 import (
 	"os/user"
+	"path/filepath"
 
+	"github.com/joshlf/kudos/lib/config"
 	"github.com/joshlf/kudos/lib/dev"
 	"github.com/joshlf/kudos/lib/kudos"
 )
@@ -89,6 +91,15 @@ func lookupUsernameForUID(ctx *kudos.Context, uid string) string {
 		return uid
 	}
 	return u.Username
+}
+
+func getUserConfigPath(ctx *kudos.Context) string {
+	u, err := user.Current()
+	if err != nil {
+		ctx.Error.Printf("could not get current user: %v\n", err)
+		dev.Fail()
+	}
+	return filepath.Join(u.HomeDir, config.UserConfigFileName)
 }
 
 // attempts to open the database; if an error is
