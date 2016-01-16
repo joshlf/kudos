@@ -33,12 +33,8 @@ func init() {
 			dev.Fail()
 		}
 
-		err = ctx.OpenDB()
-		if err != nil {
-			ctx.Error.Printf("could not open database: %v\n", err)
-			dev.Fail()
-		}
-		defer kudos.CleanupDBAndLogOnError(ctx)
+		openDB(ctx)
+		defer cleanupDB(ctx)
 
 		changed := false
 		ok := ctx.DB.AddAssignment(asgn)
@@ -60,17 +56,9 @@ func init() {
 		}
 
 		if changed {
-			err = ctx.CommitDB()
-			if err != nil {
-				ctx.Error.Printf("could not commit changes to database: %v\n", err)
-				dev.Fail()
-			}
+			commitDB(ctx)
 		} else {
-			err = ctx.CloseDB()
-			if err != nil {
-				ctx.Error.Printf("could not close database: %v\n", err)
-				dev.Fail()
-			}
+			closeDB(ctx)
 		}
 	}
 	cmdAddAssignment.Run = f

@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/joshlf/kudos/lib/dev"
 	"github.com/joshlf/kudos/lib/kudos"
 	"github.com/spf13/cobra"
 )
@@ -58,12 +57,8 @@ func init() {
 		}
 		addCourseConfig(ctx)
 
-		err := ctx.OpenDB()
-		if err != nil {
-			ctx.Error.Printf("could not open database: %v\n", err)
-			dev.Fail()
-		}
-		defer kudos.CleanupDBAndLogOnError(ctx)
+		openDB(ctx)
+		defer cleanupDB(ctx)
 
 		asgn, ok := ctx.DB.Assignments[acode]
 		if !ok {
@@ -164,11 +159,7 @@ func init() {
 			}
 		}
 
-		err = ctx.CommitDB()
-		if err != nil {
-			ctx.Error.Printf("could not commit changes to database: %v\n", err)
-			dev.Fail()
-		}
+		commitDB(ctx)
 	}
 	cmdGrade.Run = f
 	addAllGlobalFlagsTo(cmdGrade.Flags())

@@ -20,7 +20,8 @@ var cmdMain = &cobra.Command{
 	Long: `kudos is a simple grading system made out of love and frustration by ezr
 and jliebowf`,
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		cmd.Usage()
+		exitUsage()
 	},
 }
 
@@ -213,5 +214,46 @@ func lookupUserByUsernameOrUID(ctx *kudos.Context, u string) *user.User {
 			dev.Fail()
 		}
 		return usr
+	}
+}
+
+// attempts to open the database; if an error is
+// encountered, it is logged and the process exits
+func openDB(ctx *kudos.Context) {
+	err := ctx.OpenDB()
+	if err != nil {
+		ctx.Error.Printf("could not open database: %v\n", err)
+		dev.Fail()
+	}
+}
+
+// attempts to close the database; if an error is
+// encountered, it is logged and the process exits
+func closeDB(ctx *kudos.Context) {
+	err := ctx.CloseDB()
+	if err != nil {
+		ctx.Error.Printf("could not close database: %v\n", err)
+		dev.Fail()
+	}
+}
+
+// attempts to commit outstanding changes to the
+// database; if an error is encountered, it is
+// logged and the process exits
+func commitDB(ctx *kudos.Context) {
+	err := ctx.CommitDB()
+	if err != nil {
+		ctx.Error.Printf("could not commit changes to database: %v\n", err)
+		dev.Fail()
+	}
+}
+
+// attempts to clean up the database; if an error is
+// encountered, it is logged and the process exits
+func cleanupDB(ctx *kudos.Context) {
+	err := ctx.CleanupDB()
+	if err != nil {
+		ctx.Error.Printf("could not close database: %v\n", err)
+		dev.Fail()
 	}
 }

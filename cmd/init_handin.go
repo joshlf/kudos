@@ -31,20 +31,13 @@ func init() {
 			dev.Fail()
 		}
 
-		err = ctx.OpenDB()
-		if err != nil {
-			ctx.Error.Printf("could not open database: %v\n", err)
-			dev.Fail()
-		}
+		openDB(ctx)
+		defer cleanupDB(ctx)
 		var uids []string
 		for _, s := range ctx.DB.Students {
 			uids = append(uids, s.UID)
 		}
-		err = ctx.CloseDB()
-		if err != nil {
-			ctx.Error.Printf("could not close database: %v\n", err)
-			dev.Fail()
-		}
+		closeDB(ctx)
 
 		// If there is a single handin, initialize the handin
 		// directory directly. Otherwise, create the parent
