@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 
 	"github.com/joshlf/kudos/lib/kudos"
@@ -74,7 +75,8 @@ func init() {
 					// TODO(joshlf): make the precision variable
 					// so that fewer digits are used if they're
 					// not needed (ie, trailing 0s removed)
-					fmt.Printf("%v/%v (%.2f%%)\n", total, outOf, 100*(total/outOf))
+					percent := formatFloat(100 * (total / outOf))
+					fmt.Printf("%v/%v (%v%%)\n", formatFloat(total), formatFloat(outOf), percent)
 				} else {
 					fmt.Println(total)
 				}
@@ -105,9 +107,10 @@ func init() {
 							// TODO(joshlf): make the precision variable
 							// so that fewer digits are used if they're
 							// not needed (ie, trailing 0s removed)
-							totalStr = fmt.Sprintf("%v/%v (%.2f%%)", total, p.Points, 100*(total/p.Points))
+							percent := formatFloat(100 * (total / p.Points))
+							totalStr = fmt.Sprintf("%v/%v (%v%%)", formatFloat(total), formatFloat(p.Points), percent)
 						} else {
-							totalStr = fmt.Sprint(total)
+							totalStr = formatFloat(total)
 						}
 					}
 
@@ -159,13 +162,13 @@ func init() {
 			//
 			// It's mostly important that the order of any
 			// warning messages is constant (ie, warning
-			// messages produced by calls to lookupUsername),
+			// messages produced by calls to lookupUsernameForUID),
 			// but it would be nice if these were in numerical
 			// as opposed to alphabetical order
 
 			var pairs unameUIDPairs
 			for _, u := range uids {
-				uname := lookupUsername(ctx, u)
+				uname := lookupUsernameForUID(ctx, u)
 				pairs = append(pairs, unameUIDPair{uname, u})
 			}
 
@@ -199,3 +202,13 @@ type unameUIDPairs []unameUIDPair
 func (u unameUIDPairs) Len() int           { return len(u) }
 func (u unameUIDPairs) Less(i, j int) bool { return u[i].uname < u[j].uname }
 func (u unameUIDPairs) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
+
+var stripRegex = regexp.MustCompile(`\.?0*$`)
+
+// formats floating point using up to 2 digits
+// of precision after the decimal point
+func formatFloat(f float64) string {
+	a := []byte(fmt.Sprintf("%.2f", f))
+	b := []byte("")
+	return string(stripRegex.ReplaceAll(a, b))
+}
