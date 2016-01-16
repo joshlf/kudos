@@ -21,6 +21,16 @@ func init() {
 	var assignmentFlag string
 	var showProblemsFlag bool
 	var showTotalsFlag bool
+	var precisionFlag uint8
+
+	stripRegex := regexp.MustCompile(`\.?0*$`)
+	formatFloat := func(f float64) string {
+		fmt.Sprintf("%.*f", int(precisionFlag), f)
+		a := []byte(fmt.Sprintf("%.*f", int(precisionFlag), f))
+		b := []byte("")
+		return string(stripRegex.ReplaceAll(a, b))
+	}
+
 	f := func(cmd *cobra.Command, args []string) {
 		studentFlagSet := cmdShowGrade.Flags().Lookup("student").Changed
 		assignmentFlagSet := cmdShowGrade.Flags().Lookup("assignment").Changed
@@ -189,6 +199,7 @@ func init() {
 	cmdShowGrade.Flags().StringVarP(&assignmentFlag, "assignment", "", "", "the assignment to print grades for")
 	cmdShowGrade.Flags().BoolVarP(&showProblemsFlag, "show-problems", "", false, "show grade for each problem of an assignment")
 	cmdShowGrade.Flags().BoolVarP(&showTotalsFlag, "show-totals", "", false, "show total number of points grades are out of")
+	cmdShowGrade.Flags().Uint8VarP(&precisionFlag, "precision", "", 2, "the maximum number of digits of precision to use when formatting floating point values")
 	cmdMain.AddCommand(cmdShowGrade)
 }
 
@@ -202,13 +213,3 @@ type unameUIDPairs []unameUIDPair
 func (u unameUIDPairs) Len() int           { return len(u) }
 func (u unameUIDPairs) Less(i, j int) bool { return u[i].uname < u[j].uname }
 func (u unameUIDPairs) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
-
-var stripRegex = regexp.MustCompile(`\.?0*$`)
-
-// formats floating point using up to 2 digits
-// of precision after the decimal point
-func formatFloat(f float64) string {
-	a := []byte(fmt.Sprintf("%.2f", f))
-	b := []byte("")
-	return string(stripRegex.ReplaceAll(a, b))
-}
