@@ -66,13 +66,51 @@ func init() {
 				return
 			}
 			asgn := ctx.DB.Assignments[assignment]
-			if !kudos.GradeComplete(asgn, grade) {
-				fmt.Println("incomplete")
+			total, ok := grade.Total(asgn)
+			if ok {
+				fmt.Println(total)
 			} else {
-				fmt.Println(grade.Total())
+				fmt.Println("incomplete")
 			}
 			if showProblemsFlag {
-				// TODO(joshlf)
+				var walkFn func(p kudos.Problem, prefix string)
+				walkFn = func(p kudos.Problem, prefix string) {
+					// TODO(joshlf): Be able to distinguish between
+					// a missing grade (ie, a missing grade on a
+					// problem with no subproblems) and an incomplete
+					// grade (a problem in which not all subproblems
+					// have grades) and give different output.
+
+					total, ok := grade.ProblemTotal(asgn, p.Code)
+					// whether this total was calculated from
+					// subproblems (as opposed to assigned
+					// directly)
+					calculated := false
+					if _, ok := grade.Grades[p.Code]; !ok {
+						calculated = true
+					}
+
+					var pointsStr string
+					switch {
+					case !ok:
+						pointsStr = "missing"
+					case ok && !calculated:
+						pointsStr = fmt.Sprint(total)
+					case ok && calculated:
+						pointsStr = fmt.Sprintf("%v (calculated from subproblems)", total)
+					}
+
+					fmt.Printf("%v%v: %v\n", prefix, p.Code, pointsStr)
+
+					newPrefix := prefix + "\t"
+					for _, pp := range p.Subproblems {
+						walkFn(pp, newPrefix)
+					}
+				}
+				newPrefix := prefix + "\t"
+				for _, p := range asgn.Problems {
+					walkFn(p, newPrefix)
+				}
 			}
 		}
 

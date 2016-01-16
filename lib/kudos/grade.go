@@ -9,20 +9,49 @@ type AssignmentGrade struct {
 	Grades map[string]ProblemGrade
 }
 
-func (a *AssignmentGrade) Total() float64 {
+// Total computes the total number of points given by
+// the AssignmentGrade a on the Assignment asgn. If
+// a is not a complete grade, Total returns false.
+// If a is not a grade for asgn, the behavior of Total
+// is undefined (and it will likely panic).
+func (a *AssignmentGrade) Total(asgn *Assignment) (grade float64, ok bool) {
 	total := 0.0
-	for _, g := range a.Grades {
-		total += g.Grade
+	for _, p := range asgn.Problems {
+		g, ok := a.ProblemTotal(asgn, p.Code)
+		if !ok {
+			return 0.0, false
+		}
+		total += g
 	}
-	return total
+	return total, true
+}
+
+// ProblemTotal computes the total number of points
+// given by the AssignmentGrade a on the given problem
+// of the given assignment. If a is not a complete
+// grade for the given problem, ProblemTotal returns
+// false. If a is not a grade for asgn, the behavior
+// of ProblemTotal is undefined (and it will likely panic).
+func (a *AssignmentGrade) ProblemTotal(asgn *Assignment, problem string) (grade float64, ok bool) {
+	if g, ok := a.Grades[problem]; ok {
+		return g.Grade, true
+	}
+	total := 0.0
+	p, _ := asgn.FindProblemByCode(problem)
+	if len(p.Subproblems) == 0 {
+		return 0.0, false
+	}
+	for _, pp := range p.Subproblems {
+		g, ok := a.ProblemTotal(asgn, pp.Code)
+		if !ok {
+			return 0.0, false
+		}
+		total += g
+	}
+	return total, true
 }
 
 type ProblemGrade struct {
 	Grade   float64
 	Comment string
-}
-
-func GradeComplete(a *Assignment, g *AssignmentGrade) bool {
-	// TODO(joshlf)
-	panic("unimplemented")
 }
