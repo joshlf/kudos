@@ -70,20 +70,21 @@ func init() {
 			ctx.Error.Printf("assignment %v has no problem with the code %v\n", acode, pcode)
 			exitLogic()
 		}
-		u := lookupUserByUsernameOrUID(ctx, student)
+		u := lookupStudent(ctx, student)
+		// u := lookupUserByUsernameOrUID(ctx, student)
 
-		_, ok = ctx.DB.Students[u.Uid]
-		if !ok {
-			ctx.Error.Printf("no such student: %v\n", student)
-			exitLogic()
-		}
+		// _, ok = ctx.DB.Students[u.Uid]
+		// if !ok {
+		// 	ctx.Error.Printf("no such student: %v\n", student)
+		// 	exitLogic()
+		// }
 
 		if deleteFlag {
-			if _, ok := ctx.DB.Grades[acode][u.Uid]; !ok {
+			if _, ok := ctx.DB.Grades[acode][u.usr.Uid]; !ok {
 				ctx.Error.Println("grade does not exist")
 				exitLogic()
 			}
-			gradesMap := ctx.DB.Grades[acode][u.Uid].Grades
+			gradesMap := ctx.DB.Grades[acode][u.usr.Uid].Grades
 			if _, ok := gradesMap[pcode]; !ok {
 				ctx.Error.Println("grade does not exist")
 				exitLogic()
@@ -92,11 +93,11 @@ func init() {
 		} else {
 			// create this student's assignment grade
 			// if it doesn't already exist
-			if _, ok := ctx.DB.Grades[acode][u.Uid]; !ok {
-				ctx.DB.Grades[acode][u.Uid] = &kudos.AssignmentGrade{
+			if _, ok := ctx.DB.Grades[acode][u.usr.Uid]; !ok {
+				ctx.DB.Grades[acode][u.usr.Uid] = &kudos.AssignmentGrade{
 					make(map[string]kudos.ProblemGrade)}
 			}
-			gradesMap := ctx.DB.Grades[acode][u.Uid].Grades
+			gradesMap := ctx.DB.Grades[acode][u.usr.Uid].Grades
 
 			// we don't need to worry about the "ok" return value;
 			// we've already made sure the problem exists
