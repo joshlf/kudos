@@ -26,26 +26,21 @@ func (s *student) String() string { return s.str }
 // course; assumes that the database has been
 // opened
 func lookupStudent(ctx *kudos.Context, u string) *student {
-	numeric := true
-	// consider an empty username to be non-numeric
 	if len(u) == 0 {
-		numeric = false
-	} else {
-		for _, c := range u {
-			if !(c >= '0' && c <= '9') {
-				numeric = false
-			}
+		ctx.Error.Println("bad username or uid: empty")
+		exitUsage()
+	}
+
+	numeric := true
+	for _, c := range u {
+		if !(c >= '0' && c <= '9') {
+			numeric = false
 		}
 	}
 
 	var usr *user.User
 	var err error
 
-	// TODO(joshlf): What should we do about empty
-	// usernames? It would be weird to use quotation
-	// marks to print usernames in the general case,
-	// but it would also be weird to behave differently
-	// depending on what the username itself is
 	if numeric {
 		usr, err = user.LookupId(u)
 		if err != nil {
