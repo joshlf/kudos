@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"strconv"
 
+	"github.com/joshlf/kudos/lib/dev"
 	"github.com/joshlf/kudos/lib/kudos"
 	"github.com/spf13/cobra"
 )
@@ -84,6 +86,12 @@ func init() {
 			}
 			delete(gradesMap, pcode)
 		} else {
+			cur, err := user.Current()
+			if err != nil {
+				ctx.Error.Printf("could not get current user: %v\n", err)
+				dev.Fail()
+			}
+
 			// create this student's assignment grade
 			// if it doesn't already exist
 			if _, ok := ctx.DB.Grades[acode][u.usr.Uid]; !ok {
@@ -149,7 +157,8 @@ func init() {
 				Grade: grade,
 				// the zero value of commentFlag is the empty
 				// string, so we can just blindly use it
-				Comment: commentFlag,
+				Comment:   commentFlag,
+				GraderUID: cur.Uid,
 			}
 		}
 

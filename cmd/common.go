@@ -81,10 +81,7 @@ func lookupStudent(ctx *kudos.Context, u string) *student {
 // Looks up the username of the user with the
 // given uid, and returns it. If any error is
 // encountered, it is logged at the Warn level,
-// and the uid is returned instead. It is assumed
-// that this function is used for looking up
-// usernames of students in the database, and
-// the log message says this.
+// and the uid is returned instead.
 func lookupUsernameForUID(ctx *kudos.Context, uid string) string {
 	u, err := user.LookupId(uid)
 	if err != nil {

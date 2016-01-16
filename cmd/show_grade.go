@@ -20,6 +20,7 @@ func init() {
 	var studentFlag string
 	var assignmentFlag string
 	var showProblemsFlag bool
+	var showGraderFlag bool
 	var showTotalsFlag bool
 	var precisionFlag uint8
 
@@ -28,6 +29,7 @@ func init() {
 		fmt.Sprintf("%.*f", int(precisionFlag), f)
 		a := []byte(fmt.Sprintf("%.*f", int(precisionFlag), f))
 		b := []byte("")
+		// truncate trailing 0s (and optionally, trailing period)
 		return string(stripRegex.ReplaceAll(a, b))
 	}
 
@@ -67,6 +69,9 @@ func init() {
 		if studentFlagSet {
 			stud = lookupStudent(ctx, studentFlag)
 		}
+
+		// maps uids to usernames
+		graderUnames := make(map[string]string)
 
 		// if --show-problems was passed, the prefix will be
 		// prepended to each line of the output of the per-problem
@@ -121,6 +126,15 @@ func init() {
 							totalStr = fmt.Sprintf("%v/%v (%v%%)", formatFloat(total), formatFloat(p.Points), percent)
 						} else {
 							totalStr = formatFloat(total)
+						}
+						if !calculated && showGraderFlag {
+							guid := grade.Grades[p.Code].GraderUID
+							g, ok := graderUnames[guid]
+							if !ok {
+								g = lookupUsernameForUID(ctx, guid)
+								graderUnames[guid] = g
+							}
+							totalStr += fmt.Sprintf(" (grader: %v)", g)
 						}
 					}
 
@@ -194,10 +208,16 @@ func init() {
 		closeDB(ctx)
 	}
 	cmdShowGrade.Run = f
+	cmdShowGrade.PreRun = func(cmd *cobra.Command, args []string) {
+		if showGraderFlag {
+			showProblemsFlag = true
+		}
+	}
 	addAllGlobalFlagsTo(cmdShowGrade.Flags())
 	cmdShowGrade.Flags().StringVarP(&studentFlag, "student", "", "", "the student to print grades for")
 	cmdShowGrade.Flags().StringVarP(&assignmentFlag, "assignment", "", "", "the assignment to print grades for")
 	cmdShowGrade.Flags().BoolVarP(&showProblemsFlag, "show-problems", "", false, "show grade for each problem of an assignment")
+	cmdShowGrade.Flags().BoolVarP(&showGraderFlag, "show-grader", "", false, "show grader for each problem; implies --show-problems")
 	cmdShowGrade.Flags().BoolVarP(&showTotalsFlag, "show-totals", "", false, "show total number of points grades are out of")
 	cmdShowGrade.Flags().Uint8VarP(&precisionFlag, "precision", "", 2, "the maximum number of digits of precision to use when formatting floating point values")
 	cmdMain.AddCommand(cmdShowGrade)

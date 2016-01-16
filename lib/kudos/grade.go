@@ -52,6 +52,7 @@ func (a *AssignmentGrade) ProblemTotal(asgn *Assignment, problem string) (grade 
 }
 
 type ProblemGrade struct {
-	Grade   float64
-	Comment string
+	Grade     float64
+	Comment   string
+	GraderUID string
 }
