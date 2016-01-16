@@ -100,3 +100,11 @@ func findProblemPathByCode(code string, problems []Problem) ([]string, bool) {
 	}
 	return nil, false
 }
+
+func (a *Assignment) TotalPoints() float64 {
+	total := 0.0
+	for _, p := range a.Problems {
+		total += p.Points
+	}
+	return total
+}

@@ -19,6 +19,7 @@ func init() {
 	var studentFlag string
 	var assignmentFlag string
 	var showProblemsFlag bool
+	var showTotalsFlag bool
 	f := func(cmd *cobra.Command, args []string) {
 		studentFlagSet := cmdShowGrade.Flags().Lookup("student").Changed
 		assignmentFlagSet := cmdShowGrade.Flags().Lookup("assignment").Changed
@@ -68,7 +69,15 @@ func init() {
 			asgn := ctx.DB.Assignments[assignment]
 			total, ok := grade.Total(asgn)
 			if ok {
-				fmt.Println(total)
+				if showTotalsFlag {
+					outOf := asgn.TotalPoints()
+					// TODO(joshlf): make the precision variable
+					// so that fewer digits are used if they're
+					// not needed (ie, trailing 0s removed)
+					fmt.Printf("%v/%v (%.2f%%)\n", total, outOf, 100*(total/outOf))
+				} else {
+					fmt.Println(total)
+				}
 			} else {
 				fmt.Println("incomplete")
 			}
@@ -90,14 +99,26 @@ func init() {
 						calculated = true
 					}
 
+					var totalStr string
+					if ok {
+						if showTotalsFlag {
+							// TODO(joshlf): make the precision variable
+							// so that fewer digits are used if they're
+							// not needed (ie, trailing 0s removed)
+							totalStr = fmt.Sprintf("%v/%v (%.2f%%)", total, p.Points, 100*(total/p.Points))
+						} else {
+							totalStr = fmt.Sprint(total)
+						}
+					}
+
 					var pointsStr string
 					switch {
 					case !ok:
 						pointsStr = "missing"
 					case ok && !calculated:
-						pointsStr = fmt.Sprint(total)
+						pointsStr = fmt.Sprint(totalStr)
 					case ok && calculated:
-						pointsStr = fmt.Sprintf("%v (calculated from subproblems)", total)
+						pointsStr = fmt.Sprintf("%v (calculated from subproblems)", totalStr)
 					}
 
 					fmt.Printf("%v%v: %v\n", prefix, p.Code, pointsStr)
@@ -164,6 +185,7 @@ func init() {
 	cmdShowGrade.Flags().StringVarP(&studentFlag, "student", "", "", "the student to print grades for")
 	cmdShowGrade.Flags().StringVarP(&assignmentFlag, "assignment", "", "", "the assignment to print grades for")
 	cmdShowGrade.Flags().BoolVarP(&showProblemsFlag, "show-problems", "", false, "show grade for each problem of an assignment")
+	cmdShowGrade.Flags().BoolVarP(&showTotalsFlag, "show-totals", "", false, "show total number of points grades are out of")
 	cmdMain.AddCommand(cmdShowGrade)
 }
 
