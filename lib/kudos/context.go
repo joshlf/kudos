@@ -80,6 +80,10 @@ func (c *Context) CourseHandinDir() string {
 	return filepath.Join(c.CourseKudosDir(), config.HandinDirName)
 }
 
+func (c *Context) CourseSavedHandinsDir() string {
+	return filepath.Join(c.CourseKudosDir(), config.SavedHandinsDirName)
+}
+
 func (c *Context) CourseAssignmentDir() string {
 	return filepath.Join(c.CourseKudosDir(), config.AssignmentDirName)
 }
@@ -102,6 +106,14 @@ func (c *Context) AssignmentHandinDir(code string) string {
 
 func (c *Context) HandinHandinDir(assignment, handin string) string {
 	return filepath.Join(c.CourseHandinDir(), assignment, handin)
+}
+
+func (c *Context) AssignmentSavedHandinsDir(code string) string {
+	return filepath.Join(c.CourseSavedHandinsDir(), code)
+}
+
+func (c *Context) HandinSavedHandinsDir(assignment, handin string) string {
+	return filepath.Join(c.CourseSavedHandinsDir(), assignment, handin)
 }
 
 func (c *Context) UserAssignmentHandinFile(code, uid string) string {

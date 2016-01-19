@@ -12,6 +12,7 @@ const (
 	KudosDirName         = ".kudos"
 	CourseConfigFileName = "config"
 	HandinDirName        = "handin"
+	SavedHandinsDirName  = "saved_handins"
 	HandinFileName       = "handin.tgz"
 	AssignmentDirName    = "assignments"
 	HooksDirName         = "hooks"

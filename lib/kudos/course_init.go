@@ -51,6 +51,10 @@ func InitCourse(ctx *Context) (err error) {
 	if err != nil {
 		return
 	}
+	err = logAndMkdir(ctx.CourseSavedHandinsDir())
+	if err != nil {
+		return
+	}
 	err = logAndMkdir(ctx.CourseHooksDir())
 	if err != nil {
 		return

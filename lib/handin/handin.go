@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	acl "github.com/joshlf/go-acl"
 	"github.com/joshlf/kudos/lib/config"
@@ -33,6 +34,8 @@ func PerformFaclHandin(target string, verbose bool) (err error) {
 // be a tar'd and gzip'd file) to the target directory,
 // which must already exist.
 func ExtractHandin(handin, target string) (err error) {
+	// just in case, since we're passing it to a subcommand
+	target = filepath.Clean(target)
 	f, err := os.Open(handin)
 	if err != nil {
 		return err
@@ -94,13 +97,13 @@ func InitFaclHandin(dir string, uids []string) (err error) {
 	mode := perm.Parse("rwxrwxr-x")
 	err = os.Mkdir(dir, mode)
 	if err != nil {
-		return fmt.Errorf("could not create handin directory: %v", err)
+		return err
 	}
 	// set permissions explicitly since original permissions
 	// might be masked (by umask)
 	err = os.Chmod(dir, mode)
 	if err != nil {
-		return fmt.Errorf("could not set permissions on handin directory: %v", err)
+		return err
 	}
 
 	// put the defer here so that we only remove
@@ -132,7 +135,7 @@ func InitFaclHandin(dir string, uids []string) (err error) {
 		// (so defered func can check it)
 		err = os.Mkdir(path, perm.Parse("rwxrwx---"))
 		if err != nil {
-			return fmt.Errorf("could not create handin directory: %v", err)
+			return err
 		}
 
 		// if this code changes, make sure that the
@@ -146,31 +149,65 @@ func InitFaclHandin(dir string, uids []string) (err error) {
 		)
 		err = acl.Set(path, a)
 		if err != nil {
-			return fmt.Errorf("could not set permissions on handin directory: %v", err)
+			return err
 		}
 
-		var f *os.File
-		f, err = os.Create(filepath)
-		f.Close()
+		err := makeHandinFile(filepath, uid)
 		if err != nil {
-			return fmt.Errorf("could not create handin file: %v", err)
-		}
-
-		// if this code changes, make sure that the
-		// permissions on filepath are still set explicitly
-		// (relying on os.Mkdir is not enough - umask
-		// might change the permissions)
-		a = append(
-			acl.FromUnix(perm.Parse("r--r-----")),
-			acl.Entry{acl.TagUser, uid, perm.ParseSingle("-w-")},
-			acl.Entry{acl.TagMask, "", perm.ParseSingle("rw-")},
-		)
-		err = acl.Set(filepath, a)
-		if err != nil {
-			return fmt.Errorf("could not set permissions on handin file: %v", err)
+			return err
 		}
 	}
 	return nil
+}
+
+func SaveFaclHandin(handinDir, saveDir, uid string) error {
+	old := filepath.Join(handinDir, uid, config.HandinFileName)
+	new := filepath.Join(saveDir, uid+".tgz")
+	err := os.Rename(old, new)
+	if err != nil {
+		return err
+	}
+	return makeHandinFile(old, uid)
+}
+
+func makeHandinFile(path, uid string) error {
+	f, err := os.Create(path)
+	f.Close()
+	if err != nil {
+		return err
+	}
+
+	// if this code changes, make sure that the
+	// permissions on filepath are still set explicitly
+	// (relying on os.Mkdir is not enough - umask
+	// might change the permissions)
+	a := append(
+		acl.FromUnix(perm.Parse("r--r-----")),
+		acl.Entry{acl.TagUser, uid, perm.ParseSingle("-w-")},
+		acl.Entry{acl.TagMask, "", perm.ParseSingle("rw-")},
+	)
+	return acl.Set(path, a)
+}
+
+func HandedIn(dir, uid string) (bool, error) {
+	f, err := os.Open(filepath.Join(dir, uid, config.HandinFileName))
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	off, err := f.Seek(0, 2)
+	if err != nil {
+		return false, err
+	}
+	return off != 0, nil
+}
+
+func HandinTime(dir, uid string) (time.Time, error) {
+	fi, err := os.Stat(filepath.Join(dir, uid, config.HandinFileName))
+	if err != nil {
+		return time.Time{}, err
+	}
+	return fi.ModTime(), nil
 }
 
 // InitSetgidHandin initializes dir by creating it with

@@ -153,12 +153,12 @@ func addCourse(c *kudos.Context) {
 	addGlobalConfig(c)
 	if !globalFlags.Lookup("course").Changed {
 		c.Error.Println("no course provided; please specify one using the --course flag")
-		dev.Fail()
+		exitUsage()
 	}
 	code := courseFlag
 	if err := kudos.ValidateCode(code); err != nil {
 		c.Error.Printf("bad course code: %v\n", err)
-		dev.Fail()
+		exitUsage()
 	}
 	// since it was validated, code != ""
 	// (which means we can safely assign

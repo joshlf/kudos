@@ -23,7 +23,7 @@ func init() {
 		code := args[0]
 		if err := kudos.ValidateCode(code); err != nil {
 			ctx.Error.Printf("bad assignment code %q: %v\n", code, err)
-			dev.Fail()
+			exitUsage()
 		}
 		addCourseConfig(ctx)
 
@@ -44,7 +44,7 @@ func init() {
 			if forceFlag {
 				if len(ctx.DB.Grades[asgn.Code]) > 0 {
 					ctx.Error.Printf("grades have been entered for assignment %v; in order to overwrite, first delete all grades for this assignment\n", asgn.Code)
-					dev.Fail()
+					exitLogic()
 				}
 				ctx.Warn.Printf("warning: overwriting assignment %v\n", asgn.Code)
 				ctx.DB.DeleteAssignment(asgn.Code)

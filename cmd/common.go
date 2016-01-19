@@ -23,6 +23,15 @@ type student struct {
 
 func (s *student) String() string { return s.str }
 
+// implements the sort.Interface interface;
+// sorting is based on the lexical ordering
+// of the str field.
+type sortableStudents []*student
+
+func (s sortableStudents) Len() int           { return len(s) }
+func (s sortableStudents) Less(i, j int) bool { return s[i].str < s[j].str }
+func (s sortableStudents) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
 // Looks up a student by either username or UID,
 // and makes sure that they are a student of the
 // course. Assumes that the database has been
