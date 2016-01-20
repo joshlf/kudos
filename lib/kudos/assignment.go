@@ -21,6 +21,8 @@ type Problem struct {
 	Code string
 	Name string
 
+	RubricCommentTemplate string
+
 	// If this problem has subproblems,
 	// Points is the sum of the point
 	// values of all subproblems.
@@ -99,6 +101,40 @@ func findProblemPathByCode(code string, problems []Problem) ([]string, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (a *Assignment) TraverseProblemsPreOrder(f func(p Problem)) {
+	for _, p := range a.Problems {
+		p.TraversePreOrder(f)
+	}
+}
+
+func (a *Assignment) TraverseProblemsPostOrder(f func(p Problem)) {
+	for _, p := range a.Problems {
+		p.TraversePostOrder(f)
+	}
+}
+
+func (p Problem) TraversePreOrder(f func(p Problem)) {
+	var walkFn func(p Problem)
+	walkFn = func(p Problem) {
+		f(p)
+		for _, pp := range p.Subproblems {
+			walkFn(pp)
+		}
+	}
+	walkFn(p)
+}
+
+func (p Problem) TraversePostOrder(f func(p Problem)) {
+	var walkFn func(p Problem)
+	walkFn = func(p Problem) {
+		for _, pp := range p.Subproblems {
+			walkFn(pp)
+		}
+		f(p)
+	}
+	walkFn(p)
 }
 
 func (a *Assignment) TotalPoints() float64 {

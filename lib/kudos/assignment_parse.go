@@ -66,10 +66,11 @@ func (p parseableHandin) hasCode() bool { return p.Code != nil }
 func (p parseableHandin) hasDue() bool  { return p.Due != nil }
 
 type parseableProblem struct {
-	Code        *string            `json:"code"`
-	Name        *string            `json:"name"`
-	Points      *float64           `json:"points"`
-	Subproblems []parseableProblem `json:"subproblems"`
+	Code                  *string            `json:"code"`
+	Name                  *string            `json:"name"`
+	RubricCommentTemplate *string            `json:"rubric_comment_template"`
+	Points                *float64           `json:"points"`
+	Subproblems           []parseableProblem `json:"subproblems"`
 }
 
 // Convert p to an exported Problem type.
@@ -79,6 +80,7 @@ type parseableProblem struct {
 func (p parseableProblem) toProblem() (pp Problem) {
 	pp.Code = p.code()
 	pp.Name = p.name()
+	pp.RubricCommentTemplate = p.rubricCommentTemplate()
 	pp.Points = p.points()
 	for _, ppp := range p.Subproblems {
 		pp.Subproblems = append(pp.Subproblems, ppp.toProblem())
@@ -86,12 +88,18 @@ func (p parseableProblem) toProblem() (pp Problem) {
 	return
 }
 
-// problem implements the parseableProblemInterface interface
 func (p parseableProblem) code() string { return *p.Code }
 
 func (p parseableProblem) name() (s string) {
 	if p.Name != nil {
 		s = *p.Name
+	}
+	return
+}
+
+func (p parseableProblem) rubricCommentTemplate() (s string) {
+	if p.RubricCommentTemplate != nil {
+		s = *p.RubricCommentTemplate
 	}
 	return
 }

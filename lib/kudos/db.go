@@ -15,6 +15,8 @@ type DB struct {
 	// will  exist and be initialized iff the assignment itself
 	// is in the Assignments map
 	Handins map[string]map[string]map[string]time.Time
+
+	Anonymizer Anonymizer
 }
 
 // AddStudent adds the student with the given uid
@@ -73,5 +75,6 @@ func NewDB() *DB {
 		Assignments: make(map[string]*Assignment),
 		Grades:      make(map[string]map[string]*AssignmentGrade),
 		Handins:     make(map[string]map[string]map[string]time.Time),
+		Anonymizer:  NewAnonymizer(),
 	}
 }

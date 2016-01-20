@@ -22,7 +22,8 @@
       {
          "name" : "Problem 1",
          "points" : 50,
-         "code" : "prob1"
+         "code" : "prob1",
+         "rubric_comment_template" : "Deductions:"
       },
       {
          "points" : 50,
