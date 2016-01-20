@@ -251,11 +251,7 @@ func init() {
 		openDB(ctx)
 		defer cleanupDB(ctx)
 
-		asgn, ok := ctx.DB.Assignments[args[0]]
-		if !ok {
-			ctx.Error.Println("no such assignment in database")
-			exitLogic()
-		}
+		asgn := getAssignment(ctx, args[0], false)
 
 		type handinDir struct {
 			handin    kudos.Handin

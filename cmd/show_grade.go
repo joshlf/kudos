@@ -57,12 +57,7 @@ func init() {
 				ctx.Error.Printf("bad assignment code %q: %v\n", assignmentFlag, err)
 				exitUsage()
 			}
-			var ok bool
-			asgn, ok = ctx.DB.Assignments[assignmentFlag]
-			if !ok {
-				ctx.Error.Printf("no assignment in database with the code %v\n", assignmentFlag)
-				exitLogic()
-			}
+			asgn = getAssignment(ctx, assignmentFlag, false)
 		}
 
 		var stud *student

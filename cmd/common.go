@@ -151,3 +151,60 @@ func cleanupDB(ctx *kudos.Context) {
 		dev.Fail()
 	}
 }
+
+// Validates the assignment code and tries to fetch
+// the assignment from the database. If either validation
+// or lookup fails, an error is logged and the process
+// exits (exitUsage for an invalid code and exitLogic for
+// a nonexistant assignment). If logName is true, these
+// log messages will include the code itself. This is meant
+// to be used if there were multiple assignment codes
+// specified by the user, and it would be ambiguous not to
+// include the code in the log message.
+func getAssignment(ctx *kudos.Context, code string, logName bool) *kudos.Assignment {
+	validateAssignmentCode(ctx, code, logName)
+	asgn, ok := ctx.DB.Assignments[code]
+	if !ok {
+		if logName {
+			ctx.Error.Printf("no such assignment in database: %v\n", code)
+		} else {
+			ctx.Error.Println("no such assignment in database")
+		}
+		exitLogic()
+	}
+	return asgn
+}
+
+// Validates the given code. If it is invalid, an error
+// is logged and exitUsage() is called. If logCode is true,
+// the log message will include the code itself. This is
+// meant to be used if there were multiple assignment codes
+// specified by the user, and it would be ambiguous not to
+// include the code in the log message.
+func validateAssignmentCode(ctx *kudos.Context, code string, logCode bool) {
+	if err := kudos.ValidateCode(code); err != nil {
+		if logCode {
+			ctx.Error.Printf("bad assignment code %q: %v\n", code, err)
+		} else {
+			ctx.Error.Printf("bad assignment code: %v\n", err)
+		}
+		exitLogic()
+	}
+}
+
+// Validates the given code. If it is invalid, an error
+// is logged and exitUsage() is called. If logCode is true,
+// the log message will include the code itself. This is
+// meant to be used if there were multiple problem codes
+// specified by the user, and it would be ambiguous not to
+// include the code in the log message.
+func validateProblemCode(ctx *kudos.Context, code string, logCode bool) {
+	if err := kudos.ValidateCode(code); err != nil {
+		if logCode {
+			ctx.Error.Printf("bad problem code %q: %v\n", code, err)
+		} else {
+			ctx.Error.Printf("bad problem code: %v\n", err)
+		}
+		exitUsage()
+	}
+}

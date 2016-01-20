@@ -62,11 +62,8 @@ func init() {
 		openDB(ctx)
 		defer cleanupDB(ctx)
 
-		asgn, ok := ctx.DB.Assignments[acode]
-		if !ok {
-			ctx.Error.Printf("no assignment in database with the code %v\n", acode)
-			exitLogic()
-		}
+		asgn := getAssignment(ctx, acode, false)
+
 		prob, ok := asgn.FindProblemByCode(pcode)
 		if !ok {
 			ctx.Error.Printf("assignment %v has no problem with the code %v\n", acode, pcode)
