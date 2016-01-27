@@ -12,6 +12,8 @@ import (
 
 // InitCourse initializes the course specified by ctx.
 // It assumes that the course root already exists.
+// It logs messages about what files and directories
+// it is creating at the verbose level.
 func InitCourse(ctx *Context) (err error) {
 	conf := internal.MustAsset(filepath.Join("example", config.CourseConfigFileName))
 	assign := internal.MustAsset(filepath.Join("example", config.AssignmentDirName, "assignment.sample"))
