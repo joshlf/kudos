@@ -6,7 +6,7 @@ import (
 	"github.com/joshlf/kudos/lib/build"
 )
 
-const (
+var (
 	DefaultGlobalConfigFile = build.Root + "/etc/kudos/config"
 
 	KudosDirName         = ".kudos"
