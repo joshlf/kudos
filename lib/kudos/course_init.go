@@ -8,7 +8,6 @@ import (
 	"github.com/joshlf/kudos/lib/config"
 	"github.com/joshlf/kudos/lib/db"
 	"github.com/joshlf/kudos/lib/kudos/internal"
-	"github.com/joshlf/kudos/lib/perm"
 )
 
 // InitCourse initializes the course specified by ctx.
@@ -16,9 +15,6 @@ import (
 func InitCourse(ctx *Context) (err error) {
 	conf := internal.MustAsset(filepath.Join("example", config.CourseConfigFileName))
 	assign := internal.MustAsset(filepath.Join("example", config.AssignmentDirName, "assignment.sample"))
-
-	dirMode := os.ModeDir | perm.Parse("rwxrwxr-x")
-	fileMode := perm.Parse("rw-rw-r--")
 
 	fi, err := os.Stat(ctx.CourseRoot())
 	if err != nil {
@@ -31,35 +27,61 @@ func InitCourse(ctx *Context) (err error) {
 		return fmt.Errorf("course root exists but is not directory")
 	}
 
-	logAndMkdir := func(path string) error {
+	logAndMkdir := func(path string, perms os.FileMode) error {
 		ctx.Verbose.Printf("creating %v\n", path)
-		return os.Mkdir(path, dirMode)
+		err := os.Mkdir(path, perms|os.ModeDir)
+		if err != nil {
+			return err
+		}
+		// in case permissions are masked out by umask
+		return os.Chmod(path, perms|os.ModeDir)
+	}
+	logAndWriteNewFile := func(path string, perms os.FileMode, contents []byte) error {
+		ctx.Verbose.Printf("creating %v\n", path)
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perms)
+		if err != nil {
+			return err
+		}
+		// in case permissions are masked out by umask
+		err = os.Chmod(path, perms)
+		if err != nil {
+			return err
+		}
+		_, err = f.Write(conf)
+		if err != nil {
+			return err
+		}
+		return f.Sync()
 	}
 
-	err = logAndMkdir(ctx.CourseKudosDir())
+	err = logAndMkdir(ctx.CourseKudosDir(), config.KudosDirPerms)
 	if err != nil {
 		if os.IsExist(err) {
 			return fmt.Errorf("course already initialized (%v already exists)", ctx.CourseKudosDir())
 		}
 		return err
 	}
-	err = logAndMkdir(ctx.CourseAssignmentDir())
+	err = logAndMkdir(ctx.CourseAssignmentDir(), config.AssignmentDirPerms)
 	if err != nil {
 		return
 	}
-	err = logAndMkdir(ctx.CourseHandinDir())
+	err = logAndMkdir(ctx.CourseHandinDir(), config.HandinDirPerms)
 	if err != nil {
 		return
 	}
-	err = logAndMkdir(ctx.CourseSavedHandinsDir())
+	err = logAndMkdir(ctx.CourseSavedHandinsDir(), config.SavedHandinsDirPerms)
 	if err != nil {
 		return
 	}
-	err = logAndMkdir(ctx.CourseHooksDir())
+	err = logAndMkdir(ctx.CourseHooksDir(), config.HooksDirPerms)
 	if err != nil {
 		return
 	}
-	err = logAndMkdir(ctx.CourseDBDir())
+	err = logAndMkdir(ctx.CourseDBDir(), config.DBDirPerms)
+	if err != nil {
+		return
+	}
+	err = logAndMkdir(ctx.CoursePubDBDir(), config.PubDBDirPerms)
 	if err != nil {
 		return
 	}
@@ -70,30 +92,16 @@ func InitCourse(ctx *Context) (err error) {
 		return
 	}
 
-	ctx.Verbose.Printf("creating %v\n", ctx.CourseConfigFile())
-	file, err := os.OpenFile(ctx.CourseConfigFile(), os.O_CREATE|os.O_EXCL|os.O_WRONLY, fileMode)
-	if err != nil {
-		return
-	}
-	_, err = file.Write(conf)
-	if err != nil {
-		return
-	}
-	err = file.Sync()
+	ctx.Verbose.Println("initializing public database")
+	err = db.Init(NewPubDB(), ctx.CoursePubDBDir())
 	if err != nil {
 		return
 	}
 
-	path := filepath.Join(ctx.CourseAssignmentDir(), "assignment.sample")
-	ctx.Verbose.Printf("creating %v\n", path)
-	file, err = os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, fileMode)
-	if err != nil {
-		return err
-	}
-	_, err = file.Write(assign)
+	err = logAndWriteNewFile(ctx.CourseConfigFile(), config.CourseConfigFilePerms, conf)
 	if err != nil {
 		return
 	}
-	err = file.Sync()
-	return
+	path := filepath.Join(ctx.CourseAssignmentDir(), "assignment.sample")
+	return logAndWriteNewFile(path, 0664, assign)
 }

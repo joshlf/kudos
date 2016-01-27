@@ -4,24 +4,36 @@ import (
 	"path/filepath"
 
 	"github.com/joshlf/kudos/lib/build"
+	"github.com/joshlf/kudos/lib/perm"
 )
 
 var (
 	DefaultGlobalConfigFile = build.Root + "/etc/kudos/config"
 
-	KudosDirName         = ".kudos"
-	CourseConfigFileName = "config"
-	HandinDirName        = "handin"
-	SavedHandinsDirName  = "saved_handins"
-	HandinFileName       = "handin.tgz"
-	AssignmentDirName    = "assignments"
-	HooksDirName         = "hooks"
+	KudosDirName          = ".kudos"
+	KudosDirPerms         = perm.Parse("rwxrwxr-x")
+	CourseConfigFileName  = "config"
+	CourseConfigFilePerms = perm.Parse("rw-rw-r--")
+	HandinDirName         = "handin"
+	HandinDirPerms        = perm.Parse("rwxrwxr-x")
+	SavedHandinsDirName   = "saved_handins"
+	SavedHandinsDirPerms  = perm.Parse("rwxrwx---")
+	HandinFileName        = "handin.tgz"
+	AssignmentDirName     = "assignments"
+	AssignmentDirPerms    = perm.Parse("rwxrwx---")
+	HooksDirName          = "hooks"
+	HooksDirPerms         = perm.Parse("rwxrwxr-x")
 
-	UserConfigFileName = ".kudosconfig"
+	UserConfigFileName  = ".kudosconfig"
+	UserConfigFilePerms = perm.Parse("rw-r--r--")
 
-	PreHandinHookFileName = "pre-handin"
+	PreHandinHookFileName  = "pre-handin"
+	PreHandinHookFilePerms = perm.Parse("rw-rw-r--")
 
 	DBDirName      = "db"
+	DBDirPerms     = perm.Parse("rwxrwx---")
+	PubDBDirName   = "pubdb"
+	PubDBDirPerms  = perm.Parse("rwxrwxr-x")
 	DBFileName     = "db"
 	DBTempFileName = "db.tmp"
 	DBLockFileName = "lock"
