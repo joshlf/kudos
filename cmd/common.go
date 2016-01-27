@@ -152,6 +152,47 @@ func cleanupDB(ctx *kudos.Context) {
 	}
 }
 
+// attempts to open the public database; if an error
+// is encountered, it is logged and the process exits
+func openPubDB(ctx *kudos.Context) {
+	err := ctx.OpenPubDB()
+	if err != nil {
+		ctx.Error.Printf("could not open public database: %v\n", err)
+		dev.Fail()
+	}
+}
+
+// attempts to close the public database; if an error
+// is encountered, it is logged and the process exits
+func closePubDB(ctx *kudos.Context) {
+	err := ctx.ClosePubDB()
+	if err != nil {
+		ctx.Error.Printf("could not close public database: %v\n", err)
+		dev.Fail()
+	}
+}
+
+// attempts to commit outstanding changes to the
+// public database; if an error is encountered,
+// it is logged and the process exits
+func commitPubDB(ctx *kudos.Context) {
+	err := ctx.CommitPubDB()
+	if err != nil {
+		ctx.Error.Printf("could not commit changes to public database: %v\n", err)
+		dev.Fail()
+	}
+}
+
+// attempts to clean up the public database; if an error
+// is encountered, it is logged and the process exits
+func cleanupPubDB(ctx *kudos.Context) {
+	err := ctx.CleanupPubDB()
+	if err != nil {
+		ctx.Error.Printf("could not close public database: %v\n", err)
+		dev.Fail()
+	}
+}
+
 // Validates the assignment code and tries to fetch
 // the assignment from the database. If either validation
 // or lookup fails, an error is logged and the process

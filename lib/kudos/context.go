@@ -13,7 +13,9 @@ type Context struct {
 	CourseCode   string // if the empty string, considered to be unset
 	Course       *Course
 	DB           *DB
+	PubDB        *PubDB
 	committer    db.Committer
+	pubcommitter db.Committer
 	*log.Logger
 }
 
@@ -56,10 +58,52 @@ func (c *Context) CloseDB() error {
 // exit.
 func (c *Context) CleanupDB() error {
 	if c.DB != nil {
-		err := c.committer(nil)
-		c.DB = nil
-		c.committer = nil
+		return c.CloseDB()
+	}
+	return nil
+}
+
+// OpenPubDB opens the public database, populating the
+// c.PubDB field.
+func (c *Context) OpenPubDB() error {
+	p := new(PubDB)
+	committer, err := db.Open(p, c.CoursePubDBDir())
+	if err != nil {
 		return err
+	}
+	c.PubDB = p
+	c.pubcommitter = committer
+	return nil
+}
+
+// CommitPubDB closes the public database, committing
+// any changes, and sets the c.PubDB field to nil.
+func (c *Context) CommitPubDB() error {
+	err := c.committer(c.PubDB)
+	c.PubDB = nil
+	c.pubcommitter = nil
+	return err
+}
+
+// ClosePubDB closes the public database without
+// committing any changes, and sets the c.PubDB field
+// to nil.
+func (c *Context) ClosePubDB() error {
+	err := c.pubcommitter(nil)
+	c.PubDB = nil
+	c.pubcommitter = nil
+	return err
+}
+
+// CleanupPubDB closes the database without committing
+// changes if it has not already been closed.
+// CleanupPubDB is meant to be called in defered functions
+// or at program exit sites so that any remaining
+// database locks are released in case of an unexpected
+// exit.
+func (c *Context) CleanupPubDB() error {
+	if c.PubDB != nil {
+		return c.ClosePubDB()
 	}
 	return nil
 }
@@ -98,6 +142,10 @@ func (c *Context) PreHandinHookFile() string {
 
 func (c *Context) CourseDBDir() string {
 	return filepath.Join(c.CourseKudosDir(), config.DBDirName)
+}
+
+func (c *Context) CoursePubDBDir() string {
+	return filepath.Join(c.CourseKudosDir(), config.PubDBDirName)
 }
 
 func (c *Context) AssignmentHandinDir(code string) string {
