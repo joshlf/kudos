@@ -108,6 +108,24 @@ func (c *Context) CleanupPubDB() error {
 	return nil
 }
 
+// ReadPubDB reads the public database into the c.PubDB
+// field, but does not acquire a lock on it. Thus, no
+// changes can be written back to the database (and it
+// is an error to call c.CommitPubDB, c.ClosePubDB, or
+// c.CleanupPubDB after calling c.ReadPubDB). This method
+// is intended to be called when Kudos is being run by
+// a non-TA (e.g., a student) who can only read, but not
+// alter, the public database.
+func (c *Context) ReadPubDB() error {
+	p := new(PubDB)
+	err := db.Read(p, c.CoursePubDBDir())
+	if err != nil {
+		return err
+	}
+	c.PubDB = p
+	return nil
+}
+
 func (c *Context) CourseRoot() string {
 	return CourseCodeToPath(c.CourseCode, c.GlobalConfig)
 }

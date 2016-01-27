@@ -193,6 +193,14 @@ func cleanupPubDB(ctx *kudos.Context) {
 	}
 }
 
+func readPubDB(ctx *kudos.Context) {
+	err := ctx.ReadPubDB()
+	if err != nil {
+		ctx.Error.Printf("could not read public database: %v\n", err)
+		dev.Fail()
+	}
+}
+
 // Validates the assignment code and tries to fetch
 // the assignment from the database. If either validation
 // or lookup fails, an error is logged and the process

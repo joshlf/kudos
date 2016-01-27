@@ -194,6 +194,32 @@ func Open(v interface{}, path string) (c Committer, err error) {
 	return c, nil
 }
 
+// Read reads the database stored in the directory
+// given by path, and unmarshals the contents of the
+// database into v (which must be a pointer type).
+// No lock is acquired on the database, so the resulting
+// Go object cannot be used to commit changes to the
+// database. Since updates to the database file itself
+// are atomic, this function is safe even though it
+// does not acquire a lock.
+func Read(v interface{}, path string) error {
+	dbpath := filepath.Join(path, config.DBFileName)
+	f, err := os.Open(dbpath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	d := json.NewDecoder(f)
+	// we may care about the other fields later,
+	// but for now just throw them out
+	err = d.Decode(&db{DB: marshaler{v}})
+	if err != nil {
+		return fmt.Errorf("unmarshal from file: %v", err)
+	}
+	return nil
+}
+
 // TODO(joshlf): Do we care about acquiring a lock in
 // this directory when initializing? If we can assume
 // that initialization will happen before anyone else
