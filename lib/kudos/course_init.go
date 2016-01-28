@@ -49,7 +49,7 @@ func InitCourse(ctx *Context) (err error) {
 		if err != nil {
 			return err
 		}
-		_, err = f.Write(conf)
+		_, err = f.Write(contents)
 		if err != nil {
 			return err
 		}
