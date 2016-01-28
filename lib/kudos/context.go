@@ -79,7 +79,7 @@ func (c *Context) OpenPubDB() error {
 // CommitPubDB closes the public database, committing
 // any changes, and sets the c.PubDB field to nil.
 func (c *Context) CommitPubDB() error {
-	err := c.committer(c.PubDB)
+	err := c.pubcommitter(c.PubDB)
 	c.PubDB = nil
 	c.pubcommitter = nil
 	return err
