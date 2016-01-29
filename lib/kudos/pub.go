@@ -25,3 +25,32 @@ type PubHandin struct {
 	Code string
 	Due  time.Time
 }
+
+// FindHandinByCode searches through p.Handins for a handin
+// with the given code. It panics if the code is not valid.
+func (p *PubAssignment) FindHandinByCode(code string) (h PubHandin, ok bool) {
+	if ValidateCode(code) != nil {
+		panic("lib/kudos: FindHandinByCode: invalid code")
+	}
+
+	for _, h := range p.Handins {
+		// we don't need to worry about h.Code being the empty
+		// string because code cannot be (it would be invalid
+		// and we'd have already panicked)
+		if h.Code == code {
+			return h, true
+		}
+	}
+	return PubHandin{}, false
+}
+
+func AssignmentToPub(a *Assignment) *PubAssignment {
+	p := &PubAssignment{
+		Code: a.Code,
+		Name: a.Name,
+	}
+	for _, h := range a.Handins {
+		p.Handins = append(p.Handins, PubHandin{h.Code, h.Due})
+	}
+	return p
+}

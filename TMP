@@ -1,0 +1,27 @@
+- In database, each assignment handin:
+  - marked as "initialized" or "uninitialized"
+  - marked as "active" or "inactive"
+  - at handin initialization:
+    - mark "initialized"
+    - mark "active" unless specified otherwise (e.g., --no-activate)
+      - if marked "active", save status in public database
+      - if not marked "active", remove world r-x perms from handin
+        directory
+  - at activation:
+    - check to make sure it's initialized (maybe offer to initialize with
+      --initialize or similar)
+    - set world r-x perms on handin directory
+    - mark "active" in public database
+      - if committing to public database fails, warn loudly (since r-x perms
+        remain, but it's not marked active)
+  - at deactivation:
+    - check to make sure it's initialized?
+    - remove world r-x perms from handin directory
+    - mark "inactive" in public database
+      - if committing to public database fails, warn loudly (since r-x perms
+        have been removed, but it's still marked active)
+  - at publication:
+    - by default, mark "inactive"
+    - if specified (ie, --activate), mark "active"
+      - if all of the handins have not yet been initialized, fail and inform
+        the user that they should initialize them first

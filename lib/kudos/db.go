@@ -68,7 +68,7 @@ func (d *DB) DeleteAssignment(code string) bool {
 }
 
 // NewDB creates a new DB as it should be in
-// a newly-initialized course
+// a newly-initialized course.
 func NewDB() *DB {
 	return &DB{
 		Students:    make(map[string]*Student),

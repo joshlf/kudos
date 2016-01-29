@@ -25,6 +25,130 @@ var cmdHandin = &cobra.Command{
 }
 
 func init() {
+	// f := func(cmd *cobra.Command, args []string) {
+	// 	ctx := getContext()
+	// 	addCourseConfig(ctx)
+
+	// 	var handinFile string
+	// 	switch len(args) {
+	// 	case 0:
+	// 		ctx.Info.Printf("Usage: %v\n\n", cmd.Use)
+	// 		asgns, err := kudos.ParseAllAssignmentFiles(ctx)
+	// 		if err != nil {
+	// 			ctx.Error.Println("could not read all assignments; aborting")
+	// 			dev.Fail()
+	// 		}
+	// 		ctx.Info.Println("Available handins:")
+	// 		for _, a := range asgns {
+	// 			if len(a.Handins) == 1 {
+	// 				ctx.Info.Printf("  %v\n", a.Code)
+	// 			} else {
+	// 				// TODO(joshlf): maybe change the output
+	// 				// format? This works for now, but we
+	// 				// could think of something better.
+	// 				ctx.Info.Printf("  %v [", a.Code)
+	// 				h := a.Handins
+	// 				for _, hh := range h[:len(h)-1] {
+	// 					ctx.Info.Printf("%v | ", hh.Code)
+	// 				}
+	// 				ctx.Info.Printf("%v]\n", h[len(h)-1].Code)
+	// 			}
+	// 		}
+	// 		exitClean()
+	// 	case 1:
+	// 		asgns, err := kudos.ParseAllAssignmentFiles(ctx)
+	// 		if err != nil {
+	// 			ctx.Error.Println("could not read all assignments; aborting")
+	// 			dev.Fail()
+	// 		}
+	// 		a, ok := kudos.FindAssignmentByCode(asgns, args[0])
+	// 		if !ok {
+	// 			ctx.Error.Printf("no such assignment: %v\n", args[0])
+	// 			exitLogic()
+	// 		}
+	// 		if len(a.Handins) > 1 {
+	// 			// TODO(joshlf): print more useful message,
+	// 			// such as available handins?
+	// 			ctx.Error.Printf("assignment has multiple handins; please specify one\n")
+	// 			exitUsage()
+	// 		}
+	// 		u, err := user.Current()
+	// 		if err != nil {
+	// 			ctx.Error.Printf("could not get current user: %v\n", err)
+	// 			dev.Fail()
+	// 		}
+	// 		handinFile = ctx.UserAssignmentHandinFile(args[0], u.Uid)
+	// 	case 2:
+	// 		asgns, err := kudos.ParseAllAssignmentFiles(ctx)
+	// 		if err != nil {
+	// 			ctx.Error.Println("could not read all assignments; aborting")
+	// 			dev.Fail()
+	// 		}
+	// 		a, ok := kudos.FindAssignmentByCode(asgns, args[0])
+	// 		if !ok {
+	// 			ctx.Error.Printf("no such assignment: %v\n", args[0])
+	// 			exitLogic()
+	// 		}
+	// 		_, ok = a.FindHandinByCode(args[1])
+	// 		if !ok {
+	// 			ctx.Error.Printf("no such handin: %v\n", args[1])
+	// 			exitLogic()
+	// 		}
+	// 		u, err := user.Current()
+	// 		if err != nil {
+	// 			ctx.Error.Printf("could not get current user: %v\n", err)
+	// 			dev.Fail()
+	// 		}
+	// 		handinFile = ctx.UserHandinHandinFile(args[0], args[1], u.Uid)
+	// 	default:
+	// 		cmd.Usage()
+	// 		exitUsage()
+	// 	}
+
+	// 	/*
+	// 		Perform handin
+	// 	*/
+
+	// 	hook := ctx.PreHandinHookFile()
+	// 	doHook := true
+	// 	_, err := os.Stat(hook)
+	// 	if err != nil {
+	// 		if os.IsNotExist(err) {
+	// 			doHook = false
+	// 		} else {
+	// 			ctx.Error.Printf("could not stat pre-handin hook: %v\n", err)
+	// 			dev.Fail()
+	// 		}
+	// 	}
+
+	// 	// TODO(joshlf): Set environment variables
+
+	// 	if doHook {
+	// 		c := exec.Command(hook)
+	// 		c.Stderr = os.Stderr
+	// 		c.Stdout = os.Stdout
+	// 		err = c.Run()
+	// 		if err != nil {
+	// 			if _, ok := err.(*exec.ExitError); ok {
+	// 				ctx.Warn.Println("pre-handin hook exited with error code; aborting")
+	// 				dev.Fail()
+	// 			}
+	// 			ctx.Error.Printf("could not run pre-handin hook: %v\n", err)
+	// 			dev.Fail()
+	// 		}
+	// 	}
+
+	// 	printFiles := ctx.Logger.GetLevel() <= log.Info
+	// 	if printFiles {
+	// 		ctx.Info.Println("Handing in the following files:")
+	// 	}
+	// 	err = handin.PerformFaclHandin(handinFile, printFiles)
+	// 	if err != nil {
+	// 		ctx.Error.Printf("could not hand in: %v\n", err)
+	// 		dev.Fail()
+	// 	}
+	// 	ctx.Info.Println("Handin successful.")
+	// }
 	f := func(cmd *cobra.Command, args []string) {
 		ctx := getContext()
 		addCourseConfig(ctx)
@@ -32,41 +156,56 @@ func init() {
 		var handinFile string
 		switch len(args) {
 		case 0:
+			// TODO(joshlf): Stat the assignment or handin
+			// handin directory as a way of telling whether
+			// the handin is actually live yet (and maybe
+			// make "does the directory exist?" the definition
+			// of a handin being live?)
 			ctx.Info.Printf("Usage: %v\n\n", cmd.Use)
-			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
-			if err != nil {
-				ctx.Error.Println("could not read all assignments; aborting")
-				dev.Fail()
+			readPubDB(ctx)
+			var codes []string
+			for acode := range ctx.PubDB.Assignments {
+				codes = append(codes, acode)
 			}
+			sort.Strings(codes)
+
 			ctx.Info.Println("Available handins:")
-			for _, a := range asgns {
-				if len(a.Handins) == 1 {
-					ctx.Info.Printf("  %v\n", a.Code)
+			for _, acode := range codes {
+				asgn := ctx.PubDB.Assignments[acode]
+				if len(asgn.Handins) == 1 {
+					if ctx.Logger.GetLevel() <= log.Verbose {
+						ctx.Info.Printf("  %v (due %v)\n", asgn.Code, asgn.Handins[0].Due)
+					} else {
+						ctx.Info.Printf("  %v\n", asgn.Code)
+					}
 				} else {
 					// TODO(joshlf): maybe change the output
 					// format? This works for now, but we
 					// could think of something better.
-					ctx.Info.Printf("  %v [", a.Code)
-					h := a.Handins
-					for _, hh := range h[:len(h)-1] {
-						ctx.Info.Printf("%v | ", hh.Code)
+					if ctx.Logger.GetLevel() <= log.Verbose {
+						ctx.Info.Printf("  %v\n", asgn.Code)
+						for _, h := range asgn.Handins {
+							ctx.Info.Printf("    %v (due %v)\n", h.Code, h.Due)
+						}
+					} else {
+						ctx.Info.Printf("  %v [", asgn.Code)
+						h := asgn.Handins
+						for _, hh := range h[:len(h)-1] {
+							ctx.Info.Printf("%v | ", hh.Code)
+						}
+						ctx.Info.Printf("%v]\n", h[len(h)-1].Code)
 					}
-					ctx.Info.Printf("%v]\n", h[len(h)-1].Code)
 				}
 			}
 			exitClean()
 		case 1:
-			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
-			if err != nil {
-				ctx.Error.Println("could not read all assignments; aborting")
-				dev.Fail()
-			}
-			a, ok := kudos.FindAssignmentByCode(asgns, args[0])
+			readPubDB(ctx)
+			asgn, ok := ctx.PubDB.Assignments[args[0]]
 			if !ok {
 				ctx.Error.Printf("no such assignment: %v\n", args[0])
 				exitLogic()
 			}
-			if len(a.Handins) > 1 {
+			if len(asgn.Handins) > 1 {
 				// TODO(joshlf): print more useful message,
 				// such as available handins?
 				ctx.Error.Printf("assignment has multiple handins; please specify one\n")
@@ -79,17 +218,13 @@ func init() {
 			}
 			handinFile = ctx.UserAssignmentHandinFile(args[0], u.Uid)
 		case 2:
-			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
-			if err != nil {
-				ctx.Error.Println("could not read all assignments; aborting")
-				dev.Fail()
-			}
-			a, ok := kudos.FindAssignmentByCode(asgns, args[0])
+			readPubDB(ctx)
+			asgn, ok := ctx.PubDB.Assignments[args[0]]
 			if !ok {
 				ctx.Error.Printf("no such assignment: %v\n", args[0])
 				exitLogic()
 			}
-			_, ok = a.FindHandinByCode(args[1])
+			_, ok = asgn.FindHandinByCode(args[1])
 			if !ok {
 				ctx.Error.Printf("no such handin: %v\n", args[1])
 				exitLogic()
@@ -161,7 +296,7 @@ var cmdHandinInit = &cobra.Command{
 
 func init() {
 	f := func(cmd *cobra.Command, args []string) {
-		if len(args) != 1 {
+		if len(args) < 1 {
 			cmd.Usage()
 			exitUsage()
 		}
@@ -169,61 +304,164 @@ func init() {
 		ctx := getContext()
 		addCourse(ctx)
 
-		asgn, err := kudos.ParseAssignment(ctx, args[0])
-		if err != nil {
-			ctx.Error.Printf("could not read assignment config: %v\n", err)
-			dev.Fail()
+		if err := kudos.ValidateCode(args[0]); err != nil {
+			ctx.Error.Printf("bad assignment code %q: %v\n", args[0], err)
+			exitUsage()
+		}
+		handins := args[1:]
+		bad := false
+		for _, h := range handins {
+			if err := kudos.ValidateCode(h); err != nil {
+				ctx.Error.Printf("bad handin code %q: %v\n", h, err)
+				bad = true
+			}
+		}
+		if bad {
+			exitUsage()
 		}
 
 		openDB(ctx)
 		defer cleanupDB(ctx)
+
+		asgn, ok := ctx.DB.Assignments[args[0]]
+		if !ok {
+			ctx.Error.Printf("no such assignment: %v\n", args[0])
+			exitLogic()
+		}
+
+		bad = false
+		for _, h := range handins {
+			if _, ok := asgn.FindHandinByCode(h); !ok {
+				ctx.Error.Printf("no such handin: %v\n", h)
+				bad = true
+			}
+		}
+		if bad {
+			exitLogic()
+		}
+
 		var uids []string
 		for _, s := range ctx.DB.Students {
 			uids = append(uids, s.UID)
 		}
 		closeDB(ctx)
 
-		// If there is a single handin, initialize the handin
-		// directory directly. Otherwise, create the parent
-		// directory and initialize each handin directory
-		// one at a time.
-		if len(asgn.Handins) == 1 {
-			dir := ctx.AssignmentHandinDir(asgn.Code)
-			err := handin.InitFaclHandin(dir, uids)
-			if err != nil {
-				ctx.Error.Printf("initialization failed: %v", err)
-				dev.Fail()
-			}
-		} else {
-			// need world r-x so students can cd in
-			// and write to their handin files
-			mode := perm.Parse("rwxrwxr-x")
-			dir := ctx.AssignmentHandinDir(asgn.Code)
-			err = os.Mkdir(dir, mode)
-			if err != nil {
-				ctx.Error.Printf("could not create handin directory: %v\n", err)
-				dev.Fail()
-			}
-			// set permissions explicitly since original permissions
-			// might be masked (by umask)
-			err = os.Chmod(dir, mode)
-			if err != nil {
-				ctx.Error.Printf("could not set permissions on handin directory: %v\n", err)
-				dev.Fail()
-			}
+		// If they specified handins, then we've already
+		// validated that they exist, so just use those.
+		// If they haven't specified handins, it could either
+		// be because there aren't any named handins, or
+		// because they want to initialize all of them.
+		if len(handins) == 0 && len(asgn.Handins) > 1 {
+			ctx.Verbose.Println("no handins specified, but assignment has multiple handins; initializing all of them")
 			for _, h := range asgn.Handins {
-				dir := ctx.HandinHandinDir(asgn.Code, h.Code)
-				err := handin.InitFaclHandin(dir, uids)
-				if err != nil {
-					ctx.Error.Printf("could not initialize handin %v: %v", h.Code, err)
-					dev.Fail()
-				}
+				handins = append(handins, h.Code)
 			}
 		}
+		err := handinInit(ctx, asgn, uids, handins...)
+		if err != nil {
+			ctx.Error.Printf("initialization failed: %v\n", err)
+			dev.Fail()
+		}
+
+		// // If there is a single handin, initialize the handin
+		// // directory directly. Otherwise, create the parent
+		// // directory and initialize each handin directory
+		// // one at a time.
+		// if len(asgn.Handins) == 1 {
+		// 	dir := ctx.AssignmentHandinDir(asgn.Code)
+		// 	err := handin.InitFaclHandin(dir, uids)
+		// 	if err != nil {
+		// 		ctx.Error.Printf("initialization failed: %v", err)
+		// 		dev.Fail()
+		// 	}
+		// } else {
+		// 	// need world r-x so students can cd in
+		// 	// and write to their handin files
+		// 	mode := perm.Parse("rwxrwxr-x")
+		// 	dir := ctx.AssignmentHandinDir(asgn.Code)
+		// 	err = os.Mkdir(dir, mode)
+		// 	if err != nil {
+		// 		ctx.Error.Printf("could not create handin directory: %v\n", err)
+		// 		dev.Fail()
+		// 	}
+		// 	// set permissions explicitly since original permissions
+		// 	// might be masked (by umask)
+		// 	err = os.Chmod(dir, mode)
+		// 	if err != nil {
+		// 		ctx.Error.Printf("could not set permissions on handin directory: %v\n", err)
+		// 		dev.Fail()
+		// 	}
+		// 	for _, h := range asgn.Handins {
+		// 		dir := ctx.HandinHandinDir(asgn.Code, h.Code)
+		// 		err := handin.InitFaclHandin(dir, uids)
+		// 		if err != nil {
+		// 			ctx.Error.Printf("could not initialize handin %v: %v", h.Code, err)
+		// 			dev.Fail()
+		// 		}
+		// 	}
+		// }
 	}
 	cmdHandinInit.Run = f
 	addAllGlobalFlagsTo(cmdHandinInit.Flags())
 	cmdHandin.AddCommand(cmdHandinInit)
+}
+
+// handinInit initializes the given assignment's handins. If the assignment
+// has multiple handins, it creates the top-level assignment directory if
+// it does not already exist, but assumes that each handin directory specified
+// by the handins argument does not exist yet. If the assignment only has one
+// handin, it assumes that the assignment directory does not exist yet.
+func handinInit(ctx *kudos.Context, asgn *kudos.Assignment, uids []string, handins ...string) error {
+	switch {
+	case len(asgn.Handins) > 1 && len(handins) == 0:
+		panic("internal: no handins specified in argument to handinInit")
+	case len(asgn.Handins) == 1 && len(handins) > 0:
+		panic("internal: handins spuriously specified in argument to handinInit")
+	}
+	var h []kudos.Handin
+	if len(asgn.Handins) == 0 {
+		h = []kudos.Handin{asgn.Handins[0]}
+	} else {
+		for _, hcode := range handins {
+			hh, ok := asgn.FindHandinByCode(hcode)
+			if !ok {
+				panic("internal: bad handin code given in argument to handinInit")
+			}
+			h = append(h, hh)
+		}
+	}
+
+	if len(asgn.Handins) == 1 {
+		dir := ctx.AssignmentHandinDir(asgn.Code)
+		err := handin.InitFaclHandin(dir, uids)
+		if err != nil {
+			return err
+		}
+	} else {
+		dir := ctx.AssignmentHandinDir(asgn.Code)
+		if _, err := os.Stat(dir); err != nil {
+			if os.IsNotExist(err) {
+				// need world r-x so students can cd in
+				// and write to their handin files
+				mode := perm.Parse("rwxrwxr-x")
+				err := perm.Mkdir(dir, mode)
+				if err != nil {
+					return fmt.Errorf("create handin directory: %v", err)
+				}
+			} else {
+				return err
+			}
+		}
+
+		for _, hh := range h {
+			dir := ctx.HandinHandinDir(asgn.Code, hh.Code)
+			err := handin.InitFaclHandin(dir, uids)
+			if err != nil {
+				return fmt.Errorf("initialize handin %v: %v", hh.Code, err)
+			}
+		}
+	}
+	return nil
 }
 
 var cmdHandinIngest = &cobra.Command{

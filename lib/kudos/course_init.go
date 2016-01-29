@@ -8,6 +8,7 @@ import (
 	"github.com/joshlf/kudos/lib/config"
 	"github.com/joshlf/kudos/lib/db"
 	"github.com/joshlf/kudos/lib/kudos/internal"
+	"github.com/joshlf/kudos/lib/perm"
 )
 
 // InitCourse initializes the course specified by ctx.
@@ -31,24 +32,29 @@ func InitCourse(ctx *Context) (err error) {
 
 	logAndMkdir := func(path string, perms os.FileMode) error {
 		ctx.Verbose.Printf("creating %v\n", path)
-		err := os.Mkdir(path, perms|os.ModeDir)
-		if err != nil {
-			return err
-		}
-		// in case permissions are masked out by umask
-		return os.Chmod(path, perms|os.ModeDir)
+		return perm.Mkdir(path, perms|os.ModeDir)
+		// err := os.Mkdir(path, perms|os.ModeDir)
+		// if err != nil {
+		// 	return err
+		// }
+		// // in case permissions are masked out by umask
+		// return os.Chmod(path, perms|os.ModeDir)
 	}
 	logAndWriteNewFile := func(path string, perms os.FileMode, contents []byte) error {
 		ctx.Verbose.Printf("creating %v\n", path)
-		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perms)
+		f, err := perm.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perms)
+		// f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perms)
 		if err != nil {
+			// in case it was a chmod error, and the file
+			// was successfully created and opened
+			f.Close()
 			return err
 		}
-		// in case permissions are masked out by umask
-		err = os.Chmod(path, perms)
-		if err != nil {
-			return err
-		}
+		// // in case permissions are masked out by umask
+		// err = os.Chmod(path, perms)
+		// if err != nil {
+		// 	return err
+		// }
 		_, err = f.Write(contents)
 		if err != nil {
 			return err

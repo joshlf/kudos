@@ -11,8 +11,8 @@ import (
 )
 
 var cmdShowGrade = &cobra.Command{
-	Use:   "show-grade",
-	Short: "Show grades",
+	Use:   "report",
+	Short: "Report student grades",
 	// TODO(joshlf): long description
 }
 
