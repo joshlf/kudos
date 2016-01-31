@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/joshlf/kudos/lib/build"
@@ -29,6 +28,7 @@ var quietFlag bool
 var debugFlag bool
 var configFlag string
 var courseFlag string
+var noCheckTAGroupFlag bool
 
 // globalFlags contains flags which multiple
 // different subcommands may use, but which
@@ -36,35 +36,37 @@ var courseFlag string
 //
 // Subcommands should add these to themselves
 // with addGlobalFlagsTo or addAllGlobalFlagsTo
-var globalFlags = pflag.NewFlagSet("common", pflag.ContinueOnError)
+var globalFlags = pflag.NewFlagSet("global", pflag.ContinueOnError)
+var taFlags = pflag.NewFlagSet("ta", pflag.ContinueOnError)
 
-// Make sure initGlobalFlags is called
-// before any init functions are run
-var _ = initGlobalFlags()
+var (
+	// Make sure these are called before
+	// any init functions are run
+	_ = initGlobalFlags()
+	_ = initTAFlags()
+)
 
-// Return a dummy value to enable the above line
+// Return a dummy value to enable the above declaration
 func initGlobalFlags() struct{} {
 	globalFlags.StringVarP(&configFlag, "config", "", config.DefaultGlobalConfigFile, "location of the global config file")
 	globalFlags.StringVarP(&courseFlag, "course", "c", "", "course")
 	return struct{}{}
 }
 
-// Add the named flags from globalFlags
-// to the given flag set
-func addGlobalFlagsTo(fset *pflag.FlagSet, flags ...string) {
-	for _, fname := range flags {
-		f := globalFlags.Lookup(fname)
-		if f == nil {
-			panic(fmt.Errorf("internal error: unkown named flag: %v", fname))
-		}
-		fset.AddFlag(f)
-	}
+// Return a dummy value to enable the above declaration
+func initTAFlags() struct{} {
+	taFlags.BoolVarP(&noCheckTAGroupFlag, "no-check-ta-group", "", false, "do not verify that the user is in the TA group before performing operations that require TA permissions")
+	return struct{}{}
 }
 
 // Add all flags in globalFlags
 // to the given flag set
 func addAllGlobalFlagsTo(fset *pflag.FlagSet) {
 	globalFlags.VisitAll(func(f *pflag.Flag) { fset.AddFlag(f) })
+}
+
+func addAllTAFlagsTo(fset *pflag.FlagSet) {
+	taFlags.VisitAll(func(f *pflag.Flag) { fset.AddFlag(f) })
 }
 
 func main() {
