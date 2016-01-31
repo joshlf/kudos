@@ -111,6 +111,15 @@ func getUserConfigPath(ctx *kudos.Context) string {
 	return filepath.Join(u.HomeDir, config.UserConfigFileName)
 }
 
+func getUserBlacklistPath(ctx *kudos.Context) string {
+	u, err := user.Current()
+	if err != nil {
+		ctx.Error.Printf("could not get current user: %v\n", err)
+		dev.Fail()
+	}
+	return filepath.Join(u.HomeDir, config.UserBlacklistFileName)
+}
+
 // attempts to open the database; if an error is
 // encountered, it is logged and the process exits
 func openDB(ctx *kudos.Context) {

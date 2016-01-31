@@ -24,8 +24,12 @@ var (
 	HooksDirName          = "hooks"
 	HooksDirPerms         = perm.Parse("rwxrwxr-x")
 
-	UserConfigFileName  = ".kudosconfig"
-	UserConfigFilePerms = perm.Parse("rw-r--r--")
+	UserConfigFileName    = ".kudosconfig"
+	UserConfigFilePerms   = perm.Parse("rw-r--r--")
+	UserBlacklistFileName = ".kudosblacklist"
+	// no perms specified for blacklist because
+	// this is handled by custom logic in the
+	// blacklist command
 
 	PreHandinHookFileName  = "pre-handin"
 	PreHandinHookFilePerms = perm.Parse("rw-rw-r--")
