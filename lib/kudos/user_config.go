@@ -11,7 +11,7 @@ import (
 
 type UserConfig struct {
 	// Blacklist is a slice of UIDs
-	Blacklist []string `json:"blacklist",omitempty`
+	// Blacklist []string `json:"blacklist",omitempty`
 }
 
 func ParseUserConfigFile(path string) (*UserConfig, error) {

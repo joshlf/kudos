@@ -1,8 +1,12 @@
 package main
 
 import (
+	"os"
 	"os/user"
 	"path/filepath"
+	"syscall"
+
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/joshlf/kudos/lib/config"
 	"github.com/joshlf/kudos/lib/dev"
@@ -210,59 +214,118 @@ func readPubDB(ctx *kudos.Context) {
 	}
 }
 
-// Validates the assignment code and tries to fetch
-// the assignment from the database. If either validation
-// or lookup fails, an error is logged and the process
-// exits (exitUsage for an invalid code and exitLogic for
-// a nonexistant assignment). If logName is true, these
-// log messages will include the code itself. This is meant
-// to be used if there were multiple assignment codes
-// specified by the user, and it would be ambiguous not to
-// include the code in the log message.
-func getAssignment(ctx *kudos.Context, code string, logName bool) *kudos.Assignment {
-	validateAssignmentCode(ctx, code, logName)
+// Tries to fetch the given assignment from the database.
+// If no such database exists, an error is logged and
+// exitLogic() is called
+func getAssignment(ctx *kudos.Context, code string) *kudos.Assignment {
 	asgn, ok := ctx.DB.Assignments[code]
 	if !ok {
-		if logName {
-			ctx.Error.Printf("no such assignment in database: %v\n", code)
-		} else {
-			ctx.Error.Println("no such assignment in database")
-		}
+		ctx.Error.Printf("no such assignment in database: %v\n", code)
 		exitLogic()
 	}
 	return asgn
 }
 
-// Validates the given code. If it is invalid, an error
-// is logged and exitUsage() is called. If logCode is true,
-// the log message will include the code itself. This is
-// meant to be used if there were multiple assignment codes
-// specified by the user, and it would be ambiguous not to
-// include the code in the log message.
-func validateAssignmentCode(ctx *kudos.Context, code string, logCode bool) {
-	if err := kudos.ValidateCode(code); err != nil {
-		if logCode {
-			ctx.Error.Printf("bad assignment code %q: %v\n", code, err)
-		} else {
-			ctx.Error.Printf("bad assignment code: %v\n", err)
+// Validates the given codes. If any are invalid, an error
+// is logged and exitUsage() is called after each code has
+// been validated.
+func validateAssignmentCodes(ctx *kudos.Context, codes ...string) {
+	exit := false
+	for _, c := range codes {
+		if err := kudos.ValidateCode(c); err != nil {
+			ctx.Error.Printf("bad assignment code %q: %v\n", c, err)
+			exit = false
 		}
-		exitLogic()
+	}
+	if exit {
+		exitUsage()
 	}
 }
 
-// Validates the given code. If it is invalid, an error
-// is logged and exitUsage() is called. If logCode is true,
-// the log message will include the code itself. This is
-// meant to be used if there were multiple problem codes
-// specified by the user, and it would be ambiguous not to
-// include the code in the log message.
-func validateProblemCode(ctx *kudos.Context, code string, logCode bool) {
-	if err := kudos.ValidateCode(code); err != nil {
-		if logCode {
-			ctx.Error.Printf("bad problem code %q: %v\n", code, err)
-		} else {
-			ctx.Error.Printf("bad problem code: %v\n", err)
+// Validates the given codes. If any are invalid, an error
+// is logged and exitUsage() is called after each code has
+// been validated.
+func validateProblemCodes(ctx *kudos.Context, codes ...string) {
+	exit := false
+	for _, c := range codes {
+		if err := kudos.ValidateCode(c); err != nil {
+			ctx.Error.Printf("bad problem code %q: %v\n", c, err)
+			exit = false
 		}
+	}
+	if exit {
 		exitUsage()
+	}
+}
+
+// Validates the given codes. If any are invalid, an error
+// is logged and exitUsage() is called after each code has
+// been validated.
+func validateHandinCodes(ctx *kudos.Context, codes ...string) {
+	exit := false
+	for _, c := range codes {
+		if err := kudos.ValidateCode(c); err != nil {
+			ctx.Error.Printf("bad handin code %q: %v\n", c, err)
+			exit = false
+		}
+	}
+	if exit {
+		exitUsage()
+	}
+}
+
+func outIsTerminal() bool {
+	return terminal.IsTerminal(int(os.Stdout.Fd()))
+}
+
+// Attempts to determine whether the current user
+// is a TA for the course loaded in ctx by checking
+// whether the group on the course's .kudos directory
+// is a group to which the user belongs.
+//
+// The reason that the group on the .kudos directory
+// is used instead of the ta_group parameter in the
+// course configuration is that Go does not currently
+// support looking up groups without using cgo.
+func isTA(ctx *kudos.Context) (bool, error) {
+	groups, err := os.Getgroups()
+	if err != nil {
+		return false, err
+	}
+	fi, err := os.Stat(ctx.CourseKudosDir())
+	if err != nil {
+		return false, err
+	}
+	gid := fi.Sys().(*syscall.Stat_t).Gid
+	for _, g := range groups {
+		if uint32(g) == gid {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Attempts to determine whether the current user
+// is a TA for the course by calling isTA(), unless
+// --no-check-ta-group was passed, in which case
+// this function is a no-op. If isTA() returns an
+// error, it is logged at the warn level and the
+// function returns. If isTA() returns false, it
+// is logged at the error level and the process
+// exits (exitLogic()).
+func checkIsTA(ctx *kudos.Context) {
+	if noCheckTAGroupFlag {
+		return
+	}
+	ok, err := isTA(ctx)
+	if err != nil {
+		ctx.Warn.Printf("warning: could not determine if user is in the TA group: %v\n", err)
+		return
+	}
+	if !ok {
+		ctx.Error.Println("this is a TA operation, but user is not in the TA group")
+		ctx.Error.Println("(to disable this check, use --no-check-ta-group)")
+		// TODO(joshlf): is this really the right exit code?
+		exitLogic()
 	}
 }

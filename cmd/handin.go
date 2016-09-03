@@ -6,7 +6,9 @@ import (
 	"os/exec"
 	"os/user"
 	"sort"
+	"time"
 
+	"github.com/fatih/color"
 	"github.com/joshlf/kudos/lib/dev"
 	"github.com/joshlf/kudos/lib/handin"
 	"github.com/joshlf/kudos/lib/kudos"
@@ -16,15 +18,12 @@ import (
 )
 
 var cmdHandin = &cobra.Command{
-	// TODO(joshlf): figure out how to
-	// mark the handin as optional in a
-	// way that is consistent with Cobra's
-	// output.
 	Use:   "handin <assignment> [<handin>]",
 	Short: "Hand in an assignment",
 }
 
 func init() {
+	var handinLateFlag bool
 	f := func(cmd *cobra.Command, args []string) {
 		ctx := getContext()
 		addCourseConfig(ctx)
@@ -32,45 +31,86 @@ func init() {
 		var handinFile string
 		switch len(args) {
 		case 0:
-			ctx.Info.Printf("Usage: %v\n\n", cmd.Use)
-			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
-			if err != nil {
-				ctx.Error.Println("could not read all assignments; aborting")
-				dev.Fail()
+			ctx.Info.Printf("Usage: %v\n\n", cmd.UseLine())
+			readPubDB(ctx)
+			var codes []string
+			for acode := range ctx.PubDB.Assignments {
+				codes = append(codes, acode)
 			}
-			ctx.Info.Println("Available handins:")
-			for _, a := range asgns {
-				if len(a.Handins) == 1 {
-					ctx.Info.Printf("  %v\n", a.Code)
+			sort.Strings(codes)
+
+			if outIsTerminal() {
+				red := color.New(color.FgRed).SprintFunc()("red")
+				ctx.Info.Printf("Available handins (handins in %v are inactive):\n", red)
+			} else {
+				ctx.Info.Println("Available handins:")
+			}
+
+			// Note: color package automatically detects whether
+			// output file is a tty and disables colorization
+			// as needed.
+			redSprint := color.New(color.FgRed).SprintFunc()
+			formatCode := func(code string, h kudos.PubHandin) string {
+				if !h.Active {
+					code = redSprint(code)
+				}
+				return code
+			}
+			for _, acode := range codes {
+				asgn := ctx.PubDB.Assignments[acode]
+				if len(asgn.Handins) == 1 {
+					code := formatCode(asgn.Code, asgn.Handins[0])
+					if ctx.Logger.GetLevel() <= log.Verbose {
+						ctx.Info.Printf("  %v (due %v)\n", code, asgn.Handins[0].Due)
+					} else {
+						ctx.Info.Printf("  %v\n", code)
+					}
 				} else {
 					// TODO(joshlf): maybe change the output
 					// format? This works for now, but we
 					// could think of something better.
-					ctx.Info.Printf("  %v [", a.Code)
-					h := a.Handins
-					for _, hh := range h[:len(h)-1] {
-						ctx.Info.Printf("%v | ", hh.Code)
+					if ctx.Logger.GetLevel() <= log.Verbose {
+						ctx.Info.Printf("  %v\n", asgn.Code)
+						for _, h := range asgn.Handins {
+							ctx.Info.Printf("    %v (due %v)\n", formatCode(h.Code, h), h.Due)
+						}
+					} else {
+						ctx.Info.Printf("  %v [", asgn.Code)
+						h := asgn.Handins
+						for _, hh := range h[:len(h)-1] {
+							ctx.Info.Printf("%v | ", formatCode(hh.Code, hh))
+						}
+						hh := h[len(h)-1]
+						ctx.Info.Printf("%v]\n", formatCode(hh.Code, hh))
 					}
-					ctx.Info.Printf("%v]\n", h[len(h)-1].Code)
 				}
 			}
 			exitClean()
 		case 1:
-			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
-			if err != nil {
-				ctx.Error.Println("could not read all assignments; aborting")
-				dev.Fail()
-			}
-			a, ok := kudos.FindAssignmentByCode(asgns, args[0])
+			readPubDB(ctx)
+			asgn, ok := ctx.PubDB.Assignments[args[0]]
 			if !ok {
 				ctx.Error.Printf("no such assignment: %v\n", args[0])
 				exitLogic()
 			}
-			if len(a.Handins) > 1 {
+			if len(asgn.Handins) > 1 {
 				// TODO(joshlf): print more useful message,
 				// such as available handins?
-				ctx.Error.Printf("assignment has multiple handins; please specify one\n")
+				ctx.Error.Println("assignment has multiple handins; please specify one")
+				ctx.Error.Println("(use 'kudos handin' to see available handins)")
 				exitUsage()
+			}
+			if !asgn.Handins[0].Active {
+				ctx.Error.Println("this handin is inactive; you cannot hand in until it has been activated")
+				exitLogic()
+			}
+			if time.Now().After(asgn.Handins[0].Due) {
+				if handinLateFlag {
+					ctx.Warn.Println("warning: handing in late")
+				} else {
+					ctx.Error.Println("handin due date has passed; use --handin-late to hand in anyway")
+					exitLogic()
+				}
 			}
 			u, err := user.Current()
 			if err != nil {
@@ -79,20 +119,28 @@ func init() {
 			}
 			handinFile = ctx.UserAssignmentHandinFile(args[0], u.Uid)
 		case 2:
-			asgns, err := kudos.ParseAllAssignmentFiles(ctx)
-			if err != nil {
-				ctx.Error.Println("could not read all assignments; aborting")
-				dev.Fail()
-			}
-			a, ok := kudos.FindAssignmentByCode(asgns, args[0])
+			readPubDB(ctx)
+			asgn, ok := ctx.PubDB.Assignments[args[0]]
 			if !ok {
 				ctx.Error.Printf("no such assignment: %v\n", args[0])
 				exitLogic()
 			}
-			_, ok = a.FindHandinByCode(args[1])
+			h, ok := asgn.FindHandinByCode(args[1])
 			if !ok {
 				ctx.Error.Printf("no such handin: %v\n", args[1])
 				exitLogic()
+			}
+			if !h.Active {
+				ctx.Error.Println("this handin is inactive; you cannot hand in until it has been activated")
+				exitLogic()
+			}
+			if time.Now().After(h.Due) {
+				if handinLateFlag {
+					ctx.Warn.Println("warning: handing in late")
+				} else {
+					ctx.Error.Println("handin due date has passed; use --handin-late to hand in anyway")
+					exitLogic()
+				}
 			}
 			u, err := user.Current()
 			if err != nil {
@@ -151,79 +199,442 @@ func init() {
 	}
 	cmdHandin.Run = f
 	addAllGlobalFlagsTo(cmdHandin.Flags())
+	cmdHandin.Flags().BoolVarP(&handinLateFlag, "--handin-late", "", false, "handin even if it is past the due date")
 	cmdMain.AddCommand(cmdHandin)
 }
 
 var cmdHandinInit = &cobra.Command{
-	Use:   "init <assignment>",
+	Use:   "init <assignment> [<handin>...]",
 	Short: "Initialize an assignment's handins",
 }
 
 func init() {
 	f := func(cmd *cobra.Command, args []string) {
-		if len(args) != 1 {
+		if len(args) < 1 {
 			cmd.Usage()
 			exitUsage()
 		}
 
+		acode := args[0]
+		hcodes := args[1:]
+
 		ctx := getContext()
 		addCourse(ctx)
+		checkIsTA(ctx)
 
-		asgn, err := kudos.ParseAssignment(ctx, args[0])
-		if err != nil {
-			ctx.Error.Printf("could not read assignment config: %v\n", err)
-			dev.Fail()
-		}
+		validateAssignmentCodes(ctx, acode)
+		validateHandinCodes(ctx, hcodes...)
 
 		openDB(ctx)
 		defer cleanupDB(ctx)
-		var uids []string
-		for _, s := range ctx.DB.Students {
-			uids = append(uids, s.UID)
-		}
-		closeDB(ctx)
 
-		// If there is a single handin, initialize the handin
-		// directory directly. Otherwise, create the parent
-		// directory and initialize each handin directory
-		// one at a time.
-		if len(asgn.Handins) == 1 {
-			dir := ctx.AssignmentHandinDir(asgn.Code)
-			err := handin.InitFaclHandin(dir, uids)
-			if err != nil {
-				ctx.Error.Printf("initialization failed: %v", err)
-				dev.Fail()
+		asgn := getAssignment(ctx, acode)
+		bad := false
+		for _, h := range hcodes {
+			if _, ok := asgn.FindHandinByCode(h); !ok {
+				ctx.Error.Printf("no such handin: %v\n", h)
+				bad = true
 			}
-		} else {
-			// need world r-x so students can cd in
-			// and write to their handin files
-			mode := perm.Parse("rwxrwxr-x")
-			dir := ctx.AssignmentHandinDir(asgn.Code)
-			err = os.Mkdir(dir, mode)
-			if err != nil {
-				ctx.Error.Printf("could not create handin directory: %v\n", err)
-				dev.Fail()
-			}
-			// set permissions explicitly since original permissions
-			// might be masked (by umask)
-			err = os.Chmod(dir, mode)
-			if err != nil {
-				ctx.Error.Printf("could not set permissions on handin directory: %v\n", err)
-				dev.Fail()
-			}
+		}
+		if bad {
+			exitLogic()
+		}
+
+		// If they specified handins, then we've already
+		// validated that they exist, so just use those.
+		// If they haven't specified handins, it could either
+		// be because there aren't any named handins, or
+		// because they want to initialize all of them.
+		if len(hcodes) == 0 && len(asgn.Handins) > 1 {
+			ctx.Verbose.Println("no handins specified, but assignment has multiple handins; initializing all of them")
 			for _, h := range asgn.Handins {
-				dir := ctx.HandinHandinDir(asgn.Code, h.Code)
-				err := handin.InitFaclHandin(dir, uids)
+				hcodes = append(hcodes, h.Code)
+			}
+		}
+		// manually run through each of the handins so that we
+		// can update the database after each one and do a partial
+		// commit if need be (ie, if some but not all handins
+		// are successfully initialized)
+		//
+		// at this point, len(handins) == 0 means that the assignment
+		// only has one (unnamed) handin
+		if len(hcodes) == 0 {
+			err := handinInit(ctx, asgn, ctx.StudentUIDs())
+			if err != nil {
+				ctx.Error.Printf("initialization failed: %v\n", err)
+				dev.Fail()
+			}
+			ctx.DB.HandinInitialized[acode][""] = true
+		} else {
+			fail := false
+			changed := false
+			uids := ctx.StudentUIDs()
+			for _, h := range hcodes {
+				err := handinInit(ctx, asgn, uids, h)
 				if err != nil {
-					ctx.Error.Printf("could not initialize handin %v: %v", h.Code, err)
-					dev.Fail()
+					ctx.Error.Printf("initialization failed for handin %v: %v\n", h, err)
+					fail = true
+				} else {
+					ctx.DB.HandinInitialized[acode][h] = true
+					changed = true
 				}
 			}
+			if fail {
+				if changed {
+					err := ctx.CommitDB()
+					if err != nil {
+						ctx.Error.Printf("could not commit changes to database: %v\n", err)
+						f := color.New(color.FgRed).SprintFunc()
+						ctx.Error.Println(f("WARNING: some handins were initialized, but are still marked as uninitialized in the database"))
+					}
+				}
+				dev.Fail()
+			}
+		}
+		err := ctx.CommitDB()
+		if err != nil {
+			ctx.Error.Printf("could not commit changes to database: %v\n", err)
+			f := color.New(color.FgRed).SprintFunc()
+			if len(hcodes) < 2 {
+				// 1 (they specified a single handin) or 0
+				// (the assignment has one unnamed handin)
+				ctx.Error.Println(f("WARNING: handin was initialized, but is still marked as uninitialized in the database"))
+			} else {
+				ctx.Error.Println(f("WARNING: handins were initialized, but are still marked as uninitialized in the database"))
+			}
+			dev.Fail()
 		}
 	}
 	cmdHandinInit.Run = f
 	addAllGlobalFlagsTo(cmdHandinInit.Flags())
+	addAllTAFlagsTo(cmdHandinInit.Flags())
 	cmdHandin.AddCommand(cmdHandinInit)
+}
+
+// handinInit initializes the given assignment's handins. If the assignment
+// has multiple handins, it creates the top-level assignment directory if
+// it does not already exist, but assumes that each handin directory specified
+// by the handins argument does not exist yet. If the assignment only has one
+// handin, it assumes that the assignment directory does not exist yet.
+func handinInit(ctx *kudos.Context, asgn *kudos.Assignment, uids []string, handins ...string) error {
+	switch {
+	case len(asgn.Handins) > 1 && len(handins) == 0:
+		panic("internal: no handins specified in argument to handinInit")
+	case len(asgn.Handins) == 1 && len(handins) > 0:
+		panic("internal: handins spuriously specified in argument to handinInit")
+	}
+	var h []kudos.Handin
+	if len(asgn.Handins) == 0 {
+		h = []kudos.Handin{asgn.Handins[0]}
+	} else {
+		for _, hcode := range handins {
+			hh, ok := asgn.FindHandinByCode(hcode)
+			if !ok {
+				panic("internal: bad handin code given in argument to handinInit")
+			}
+			h = append(h, hh)
+		}
+	}
+
+	if len(asgn.Handins) == 1 {
+		dir := ctx.AssignmentHandinDir(asgn.Code)
+		err := handin.InitFaclHandin(dir, uids)
+		if err != nil {
+			return err
+		}
+	} else {
+		dir := ctx.AssignmentHandinDir(asgn.Code)
+		if _, err := os.Stat(dir); err != nil {
+			if os.IsNotExist(err) {
+				// need world r-x so students can cd in
+				// and write to their handin files
+				mode := perm.Parse("rwxrwxr-x")
+				err := perm.Mkdir(dir, mode)
+				if err != nil {
+					return fmt.Errorf("create handin directory: %v", err)
+				}
+			} else {
+				return err
+			}
+		}
+
+		for _, hh := range h {
+			dir := ctx.HandinHandinDir(asgn.Code, hh.Code)
+			err := handin.InitFaclHandin(dir, uids)
+			if err != nil {
+				return fmt.Errorf("initialize handin %v: %v", hh.Code, err)
+			}
+		}
+	}
+	return nil
+}
+
+// TODO(joshlf): Give a --force flag for activate
+// and deactivate, which sets permissions anyway
+// even if the public database already has the
+// assignment marked in the way the user wants it.
+// This is in case the two get out of sync and the
+// user isn't comfortable setting it manually.
+
+var cmdHandinActivate = &cobra.Command{
+	Use:   "activate <assignment> [<handin>]",
+	Short: "Allow students to submit handins for the given handin",
+	// TODO(joshlf): long description
+}
+
+func init() {
+	// var allHandinsFlag bool
+	var initializeFlag bool
+	f := func(cmd *cobra.Command, args []string) {
+		switch {
+		case len(args) < 1 || len(args) > 2:
+			cmd.Usage()
+			exitUsage()
+			// case len(args) == 2 && allHandinsFlag:
+			// fmt.Fprintf(os.Stderr, "cannot specify handin and use --all-handins")
+			// exitUsage()
+		}
+		ctx := getContext()
+
+		acode := args[0]
+		// getAssignment performs this validation, but we'd
+		// like to encounter formatting errors in the order
+		// they appear on the command line
+		validateAssignmentCodes(ctx, acode)
+		var hcode string
+		handinSpecified := len(args) == 2
+		if handinSpecified {
+			hcode = args[1]
+			validateHandinCodes(ctx, hcode)
+		}
+
+		addCourseConfig(ctx)
+		checkIsTA(ctx)
+
+		openDB(ctx)
+		defer cleanupDB(ctx)
+
+		asgn := getAssignment(ctx, acode)
+		// var handin kudos.Handin
+		if handinSpecified {
+			_, ok := asgn.FindHandinByCode(hcode)
+			if !ok {
+				ctx.Error.Printf("no such handin for assignment %v: %v\n", acode, hcode)
+				exitLogic()
+			}
+		} else if len(asgn.Handins) > 1 {
+			ctx.Error.Println("assignment has multiple handins; please specify one")
+			exitLogic()
+		}
+
+		openPubDB(ctx)
+		defer cleanupPubDB(ctx)
+
+		// TODO(joshlf): verify that the assignment has been published,
+		// and that the handin has been initialized
+
+		pubasgn := ctx.PubDB.Assignments[acode]
+		pubhandin := pubasgn.Handins[0]
+		if handinSpecified {
+			pubhandin, _ = pubasgn.FindHandinByCode(hcode)
+		}
+
+		if pubhandin.Active {
+			ctx.Warn.Println("warning: handin is already active")
+			exitClean()
+		}
+
+		// if we initialize the handin, then we have to mark and commit
+		// that change in the database, in which case we need to handle
+		// the cleanup logic at the end differently
+		handinInitialized := false
+		if !ctx.DB.HandinInitialized[acode][hcode] {
+			if !initializeFlag {
+				ctx.Error.Println("handin hasn't been initialized; run 'kudos handin init' or use --initialize")
+				exitLogic()
+			} else {
+				err := handinInit(ctx, asgn, ctx.StudentUIDs(), hcode)
+				if err != nil {
+					ctx.Error.Printf("initialize handin: %v\n", err)
+					dev.Fail()
+				}
+				ctx.DB.HandinInitialized[acode][hcode] = true
+				handinInitialized = true
+			}
+		}
+
+		for i, h := range pubasgn.Handins {
+			if h.Code == hcode {
+				pubasgn.Handins[i].Active = true
+			}
+		}
+
+		dir := ctx.AssignmentHandinDir(acode)
+		if handinSpecified {
+			dir = ctx.HandinHandinDir(acode, hcode)
+		}
+		fi, err := os.Stat(dir)
+		if err != nil {
+			ctx.Error.Printf("stat handin directory: %v\n", err)
+			dev.Fail()
+		}
+		// just in case the other permissions were changed
+		// by TAs manually, respect those changes
+		mode := fi.Mode() | perm.ParseSingle("r-x")
+		err = os.Chmod(dir, mode)
+		if err != nil {
+			ctx.Error.Printf("set permissions on handin directory: %v\n", err)
+			dev.Fail()
+		}
+		err = ctx.CommitPubDB()
+		if err != nil {
+			ctx.Error.Printf("could not commit changes to public database: %v\n", err)
+			f := color.New(color.FgRed).SprintFunc()
+			ctx.Error.Println(f("WARNING: permissions on handin directory were changed, but the handin is still marked as inactive in the public database"))
+			if handinInitialized {
+				// this is OK because the only information
+				// we've changed is whether the handin was
+				// initialized, and it was initialized successfully
+				err := ctx.CommitDB()
+				if err != nil {
+					ctx.Error.Printf("could not commit changes to database: %v\n", err)
+					f := color.New(color.FgRed).SprintFunc()
+					ctx.Error.Println(f("WARNING: handin directory was initialized, but the handin is still marked as uninitialized in the database"))
+				}
+			}
+			dev.Fail()
+		}
+		if handinInitialized {
+			err := ctx.CommitDB()
+			if err != nil {
+				ctx.Error.Printf("could not commit changes to database: %v\n", err)
+				f := color.New(color.FgRed).SprintFunc()
+				ctx.Error.Println(f("WARNING: handin directory was initialized, but the handin is still marked as uninitialized in the database"))
+				dev.Fail()
+			}
+		} else {
+			closeDB(ctx)
+		}
+	}
+	cmdHandinActivate.Run = f
+	addAllGlobalFlagsTo(cmdHandinActivate.Flags())
+	addAllTAFlagsTo(cmdHandinActivate.Flags())
+	// cmdHandinIngest.Flags().BoolVarP(&allHandinsFlag, "all-handins", "", false, "if the assignment has multiple handins, activate them all")
+	cmdHandinActivate.Flags().BoolVarP(&initializeFlag, "initialize", "", false, "if the handin hasn't been initialized yet, initialize it before activation")
+	cmdHandin.AddCommand(cmdHandinActivate)
+}
+
+var cmdHandinDeactivate = &cobra.Command{
+	Use:   "deactivate <assignment> [<handin>]",
+	Short: "Disallow students from submitting handins for the given handin",
+	// TODO(joshlf): long description
+}
+
+func init() {
+	// var allHandinsFlag bool
+	f := func(cmd *cobra.Command, args []string) {
+		switch {
+		case len(args) < 1 || len(args) > 2:
+			cmd.Usage()
+			exitUsage()
+			// case len(args) == 2 && allHandinsFlag:
+			// fmt.Fprintf(os.Stderr, "cannot specify handin and use --all-handins")
+			// exitUsage()
+		}
+		ctx := getContext()
+
+		acode := args[0]
+		// getAssignment performs this validation, but we'd
+		// like to encounter formatting errors in the order
+		// they appear on the command line
+		validateAssignmentCodes(ctx, acode)
+		var hcode string
+		handinSpecified := len(args) == 2
+		if handinSpecified {
+			hcode = args[1]
+			validateHandinCodes(ctx, hcode)
+		}
+
+		addCourseConfig(ctx)
+		checkIsTA(ctx)
+
+		openDB(ctx)
+		defer cleanupDB(ctx)
+
+		asgn := getAssignment(ctx, acode)
+		if handinSpecified {
+			_, ok := asgn.FindHandinByCode(hcode)
+			if !ok {
+				ctx.Error.Printf("no such handin for assignment %v: %v\n", acode, hcode)
+				exitLogic()
+			}
+			if !ctx.DB.HandinInitialized[acode][hcode] {
+				ctx.Error.Println("handin is not initialized")
+				exitLogic()
+			}
+		} else {
+			if len(asgn.Handins) > 1 {
+				ctx.Error.Println("assignment has multiple handins; please specify one")
+				exitLogic()
+			}
+			if !ctx.DB.HandinInitialized[acode][""] {
+				ctx.Error.Println("handin is not initialized")
+				exitLogic()
+			}
+		}
+
+		openPubDB(ctx)
+		defer cleanupPubDB(ctx)
+
+		// TODO(joshlf): verify that the assignment has been published
+
+		pubasgn := ctx.PubDB.Assignments[acode]
+		pubhandin := pubasgn.Handins[0]
+		if handinSpecified {
+			pubhandin, _ = pubasgn.FindHandinByCode(hcode)
+		}
+
+		if !pubhandin.Active {
+			ctx.Warn.Println("warning: handin is already inactive")
+			exitClean()
+		}
+		for i, h := range pubasgn.Handins {
+			if h.Code == hcode {
+				pubasgn.Handins[i].Active = false
+			}
+		}
+
+		dir := ctx.AssignmentHandinDir(acode)
+		if handinSpecified {
+			dir = ctx.HandinHandinDir(acode, hcode)
+		}
+		fi, err := os.Stat(dir)
+		if err != nil {
+			ctx.Error.Printf("stat handin directory: %v\n", err)
+			dev.Fail()
+		}
+		// just in case the other permissions were changed
+		// by TAs manually, respect those changes
+		mode := fi.Mode() & ^perm.ParseSingle("rwx")
+		err = os.Chmod(dir, mode)
+		if err != nil {
+			ctx.Error.Printf("set permissions on handin directory: %v\n", err)
+			dev.Fail()
+		}
+		err = ctx.CommitPubDB()
+		if err != nil {
+			ctx.Error.Printf("could not commit changes to public database: %v\n", err)
+			f := color.New(color.FgRed).SprintFunc()
+			ctx.Error.Println(f("WARNING: permissions on handin directory were changed, but the handin is still marked as active in the public database"))
+			dev.Fail()
+		}
+		closeDB(ctx)
+	}
+	cmdHandinDeactivate.Run = f
+	addAllGlobalFlagsTo(cmdHandinDeactivate.Flags())
+	addAllTAFlagsTo(cmdHandinDeactivate.Flags())
+	// cmdHandinIngest.Flags().BoolVarP(&allHandinsFlag, "all-handins", "", false, "if the assignment has multiple handins, deactivate them all")
+	cmdHandin.AddCommand(cmdHandinDeactivate)
 }
 
 var cmdHandinIngest = &cobra.Command{
@@ -247,11 +658,12 @@ func init() {
 		}
 		ctx := getContext()
 		addCourseConfig(ctx)
+		checkIsTA(ctx)
 
 		openDB(ctx)
 		defer cleanupDB(ctx)
 
-		asgn := getAssignment(ctx, args[0], false)
+		asgn := getAssignment(ctx, args[0])
 
 		type handinDir struct {
 			handin    kudos.Handin
@@ -342,7 +754,7 @@ func init() {
 				if len(asgn.Handins) == 1 {
 					hcode = ""
 				}
-				if _, ok := ctx.DB.Handins[asgn.Code][hcode][s.student.UID]; ok {
+				if _, ok := ctx.DB.StudentHandins[asgn.Code][hcode][s.student.UID]; ok {
 					if forceFlag {
 						ctx.Warn.Printf("warning: %v already ingested; overwriting\n", logPrefix)
 					} else {
@@ -369,7 +781,7 @@ func init() {
 					continue
 				}
 
-				ctx.DB.Handins[asgn.Code][hcode][s.student.UID] = t
+				ctx.DB.StudentHandins[asgn.Code][hcode][s.student.UID] = t
 				changed = true
 
 				// make sure that all variables used
@@ -408,6 +820,7 @@ func init() {
 	}
 	cmdHandinIngest.Run = f
 	addAllGlobalFlagsTo(cmdHandinIngest.Flags())
+	addAllTAFlagsTo(cmdHandinIngest.Flags())
 	cmdHandinIngest.Flags().StringVarP(&studentFlag, "student", "", "", "only ingest this student's handin")
 	cmdHandinIngest.Flags().BoolVarP(&allHandinsFlag, "all-handins", "", false, "if the assignment has multiple handins, ingest them all")
 	cmdHandinIngest.Flags().BoolVarP(&forceFlag, "force", "", false, "overwrite previously-ingested handins")

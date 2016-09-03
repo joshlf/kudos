@@ -63,3 +63,29 @@ func ParseSingle(perm string) os.FileMode {
 	}
 	return mode
 }
+
+// Mkdir is like os.Mkdir, except that after creating the directory,
+// it calls os.Chmod to explicitly set the permissions in case they
+// were originally masked out by the user's umask on file creation.
+func Mkdir(name string, perm os.FileMode) error {
+	err := os.Mkdir(name, perm)
+	if err != nil {
+		return err
+	}
+	return os.Chmod(name, perm)
+}
+
+// OpenFile is like os.OpenFile, except that after opening the file,
+// it calls os.Chmod to explicitly set the permissions in case they
+// were originally masked out by the user's umask on file creation.
+//
+// Note that even if an error is returned, it may be an error from
+// os.Chmod, in which case the returned file will still exist and
+// be open.
+func OpenFile(name string, flag int, perm os.FileMode) (*os.File, error) {
+	f, err := os.OpenFile(name, flag, perm)
+	if err != nil {
+		return f, err
+	}
+	return f, os.Chmod(name, perm)
+}

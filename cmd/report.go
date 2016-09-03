@@ -10,9 +10,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var cmdShowGrade = &cobra.Command{
-	Use:   "show-grade",
-	Short: "Show grades",
+var cmdReport = &cobra.Command{
+	Use:   "report",
+	Short: "Report student grades",
 	// TODO(joshlf): long description
 }
 
@@ -34,8 +34,8 @@ func init() {
 	}
 
 	f := func(cmd *cobra.Command, args []string) {
-		studentFlagSet := cmdShowGrade.Flags().Lookup("student").Changed
-		assignmentFlagSet := cmdShowGrade.Flags().Lookup("assignment").Changed
+		studentFlagSet := cmdReport.Flags().Lookup("student").Changed
+		assignmentFlagSet := cmdReport.Flags().Lookup("assignment").Changed
 		switch {
 		case len(args) > 0:
 			cmd.Usage()
@@ -47,6 +47,7 @@ func init() {
 
 		ctx := getContext()
 		addCourseConfig(ctx)
+		checkIsTA(ctx)
 
 		openDB(ctx)
 		defer cleanupDB(ctx)
@@ -57,7 +58,7 @@ func init() {
 				ctx.Error.Printf("bad assignment code %q: %v\n", assignmentFlag, err)
 				exitUsage()
 			}
-			asgn = getAssignment(ctx, assignmentFlag, false)
+			asgn = getAssignment(ctx, assignmentFlag)
 		}
 
 		var stud *student
@@ -202,20 +203,21 @@ func init() {
 
 		closeDB(ctx)
 	}
-	cmdShowGrade.Run = f
-	cmdShowGrade.PreRun = func(cmd *cobra.Command, args []string) {
+	cmdReport.Run = f
+	cmdReport.PreRun = func(cmd *cobra.Command, args []string) {
 		if showGraderFlag {
 			showProblemsFlag = true
 		}
 	}
-	addAllGlobalFlagsTo(cmdShowGrade.Flags())
-	cmdShowGrade.Flags().StringVarP(&studentFlag, "student", "", "", "the student to print grades for")
-	cmdShowGrade.Flags().StringVarP(&assignmentFlag, "assignment", "", "", "the assignment to print grades for")
-	cmdShowGrade.Flags().BoolVarP(&showProblemsFlag, "show-problems", "", false, "show grade for each problem of an assignment")
-	cmdShowGrade.Flags().BoolVarP(&showGraderFlag, "show-grader", "", false, "show grader for each problem; implies --show-problems")
-	cmdShowGrade.Flags().BoolVarP(&showTotalsFlag, "show-totals", "", false, "show total number of points grades are out of")
-	cmdShowGrade.Flags().Uint8VarP(&precisionFlag, "precision", "", 2, "the maximum number of digits of precision to use when formatting floating point values")
-	cmdMain.AddCommand(cmdShowGrade)
+	addAllGlobalFlagsTo(cmdReport.Flags())
+	addAllTAFlagsTo(cmdReport.Flags())
+	cmdReport.Flags().StringVarP(&studentFlag, "student", "", "", "the student to print grades for")
+	cmdReport.Flags().StringVarP(&assignmentFlag, "assignment", "", "", "the assignment to print grades for")
+	cmdReport.Flags().BoolVarP(&showProblemsFlag, "show-problems", "", false, "show grade for each problem of an assignment")
+	cmdReport.Flags().BoolVarP(&showGraderFlag, "show-grader", "", false, "show grader for each problem; implies --show-problems")
+	cmdReport.Flags().BoolVarP(&showTotalsFlag, "show-totals", "", false, "show total number of points grades are out of")
+	cmdReport.Flags().Uint8VarP(&precisionFlag, "precision", "", 2, "the maximum number of digits of precision to use when formatting floating point values")
+	cmdMain.AddCommand(cmdReport)
 }
 
 // to make sorting unames alphabetically easier

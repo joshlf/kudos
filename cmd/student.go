@@ -23,6 +23,7 @@ func init() {
 		}
 		ctx := getContext()
 		addCourseConfig(ctx)
+		checkIsTA(ctx)
 
 		openDB(ctx)
 		defer cleanupDB(ctx)
@@ -55,6 +56,7 @@ func init() {
 	}
 	cmdStudent.Run = f
 	addAllGlobalFlagsTo(cmdStudent.Flags())
+	addAllTAFlagsTo(cmdStudent.Flags())
 	cmdMain.AddCommand(cmdStudent)
 }
 
@@ -73,6 +75,7 @@ func init() {
 		}
 		ctx := getContext()
 		addCourseConfig(ctx)
+		checkIsTA(ctx)
 
 		openDB(ctx)
 		defer cleanupDB(ctx)
@@ -144,6 +147,7 @@ func init() {
 	}
 	cmdStudentAdd.Run = f
 	addAllGlobalFlagsTo(cmdStudentAdd.Flags())
+	addAllTAFlagsTo(cmdStudentAdd.Flags())
 	cmdStudentAdd.Flags().BoolVarP(&strictFlag, "strict", "", false, "if any user is not found, the entire operation is aborted")
 	cmdStudent.AddCommand(cmdStudentAdd)
 }

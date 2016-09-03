@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 )
 
 type RubricGrade struct {
@@ -129,6 +130,18 @@ func GenerateRubric(w io.Writer, asgn *Assignment, uid, token string, problems .
 	}
 	_, err = w.Write(buf)
 	return err
+}
+
+func ParseRubricFile(path string) (*Rubric, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	r, err := parseRubric(f)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse: %v", err)
+	}
+	return r, nil
 }
 
 func parseRubric(r io.Reader) (*Rubric, error) {

@@ -57,6 +57,26 @@ func (a *Assignment) FindHandinByCode(code string) (h Handin, ok bool) {
 	return Handin{}, false
 }
 
+// SetHandinByCode searches through a.Handins for a handin
+// with the given code, overwriting it with h once it is
+// found. It panics if the code is not valid or if no such
+// handin is found.
+func (a *Assignment) SetHandinByCode(code string, h Handin) {
+	if ValidateCode(code) != nil {
+		panic("lib/kudos: SetHandinByCode: invalid code")
+	}
+
+	for i, hh := range a.Handins {
+		// we don't need to worry about h.Code being the empty
+		// string because code cannot be (it would be invalid
+		// and we'd have already panicked)
+		if hh.Code == code {
+			a.Handins[i] = h
+		}
+	}
+	panic("lib/kudos: SetHandinByCode: no such code")
+}
+
 func (a *Assignment) FindProblemByCode(code string) (p Problem, ok bool) {
 	if ValidateCode(code) != nil {
 		panic("lib/kudos: FindProblemByCode: invalid code")

@@ -189,3 +189,11 @@ func (c *Context) UserAssignmentHandinFile(code, uid string) string {
 func (c *Context) UserHandinHandinFile(assignment, handin, uid string) string {
 	return filepath.Join(c.HandinHandinDir(assignment, handin), uid, config.HandinFileName)
 }
+
+func (c *Context) StudentUIDs() []string {
+	var uids []string
+	for u := range c.DB.Students {
+		uids = append(uids, u)
+	}
+	return uids
+}

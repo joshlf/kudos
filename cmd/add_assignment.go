@@ -17,15 +17,13 @@ func init() {
 	f := func(cmd *cobra.Command, args []string) {
 		if len(args) != 1 {
 			cmd.Usage()
-			dev.Fail()
+			exitUsage()
 		}
 		ctx := getContext()
 		code := args[0]
-		if err := kudos.ValidateCode(code); err != nil {
-			ctx.Error.Printf("bad assignment code %q: %v\n", code, err)
-			exitUsage()
-		}
+		validateAssignmentCodes(ctx, code)
 		addCourseConfig(ctx)
+		checkIsTA(ctx)
 
 		asgn, err := kudos.ParseAssignmentFileByCode(ctx, code)
 		if err != nil {
@@ -63,6 +61,7 @@ func init() {
 	}
 	cmdAddAssignment.Run = f
 	addAllGlobalFlagsTo(cmdAddAssignment.Flags())
+	addAllTAFlagsTo(cmdAddAssignment.Flags())
 	cmdAddAssignment.Flags().BoolVarP(&forceFlag, "force", "f", false, "overwrite previous version of assignment in database")
 	cmdMain.AddCommand(cmdAddAssignment)
 }

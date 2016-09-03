@@ -39,11 +39,12 @@ func init() {
 		}
 		ctx := getContext()
 		addCourseConfig(ctx)
+		checkIsTA(ctx)
 
 		openDB(ctx)
 		defer cleanupDB(ctx)
 
-		asgn := getAssignment(ctx, args[0], false)
+		asgn := getAssignment(ctx, args[0])
 		s := lookupStudent(ctx, args[1])
 
 		pcodes := args[2:]
@@ -54,7 +55,7 @@ func init() {
 		seenParents := make(map[string]string)
 		seenCodes := make(map[string]bool)
 		for _, code := range pcodes {
-			validateProblemCode(ctx, code, true)
+			validateProblemCodes(ctx, code)
 			if seenCodes[code] {
 				ctx.Error.Printf("duplicate problem code: %v\n", code)
 				exitUsage()
@@ -123,6 +124,7 @@ func init() {
 	}
 	cmdRubricGenerate.Run = f
 	addAllGlobalFlagsTo(cmdRubricGenerate.Flags())
+	addAllTAFlagsTo(cmdRubricGenerate.Flags())
 	cmdRubricGenerate.Flags().StringVarP(&outputFlag, "output", "o", "", "write the rubric to this file instead of stdout")
 	cmdRubricGenerate.Flags().BoolVarP(&anonymousFlag, "anonymous", "", false, "store an anonymous token instead of a uid in the rubric")
 	cmdRubric.AddCommand(cmdRubricGenerate)
